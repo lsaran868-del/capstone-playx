@@ -1,0 +1,12 @@
+run = "npm run dev"
+entrypoint = "backend/src/index.ts"
+
+[nix]
+channel = "stable-23_11"
+
+[deployment]
+run = ["sh", "-c", "npm run build && npm start"]
+
+[[ports]]
+localPort = 3000
+externalPort = 80
