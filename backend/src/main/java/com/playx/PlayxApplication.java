@@ -10,7 +10,7 @@ public class PlayxApplication {
         System.out.println("\n🎧 ===============================================\n" +
                            "   PLAYX Music Streaming Spring Boot API Server\n" +
                            "   Running on: http://localhost:5000\n" +
-                           "   H2 Console: http://localhost:5000/h2-console\n" +
+                           "   Database: MySQL (localhost:3306/PlayX_db)\n" +
                            "===============================================🎧\n");
     }
 }
