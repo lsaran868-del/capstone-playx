@@ -1,6 +1,6 @@
 {
     "java.compile.nullAnalysis.mode": "disabled",
-    "java.project.sourcePaths": [
-        "backend/src/main/java"
-    ]
+    "java.server.launchMode": "Standard",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "css.lint.unknownAtRules": "ignore"
 }
