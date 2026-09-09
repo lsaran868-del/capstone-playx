@@ -8,8 +8,11 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, role?: string) => Promise<void>;
+  registerWithoutLogin: (name: string, email: string, password: string, confirmPassword?: string, role?: string) => Promise<any>;
+  loginWithSocial: (provider: 'google' | 'apple', email?: string, name?: string) => Promise<void>;
   logout: () => void;
-  updateProfile: (data: { name?: string; avatar?: string; password?: string }) => Promise<void>;
+  updateProfile: (data: { name?: string; avatar?: string; password?: string; bio?: string }) => Promise<any>;
+  uploadAvatar: (file: File) => Promise<string>;
   upgradeSubscription: (planId?: string) => Promise<void>;
 }
 
@@ -56,15 +59,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(userData);
   };
 
+  const registerWithoutLogin = async (name: string, email: string, password: string, confirmPassword?: string, role = 'user') => {
+    const res = await api.post('/auth/register', { name, email, password, confirmPassword: confirmPassword || password, role });
+    return res.data;
+  };
+
+  const loginWithSocial = async (provider: 'google' | 'apple', email?: string, name?: string) => {
+    const res = await api.post('/auth/social-login', { provider, email, name });
+    const { token: newToken, user: userData } = res.data;
+    localStorage.setItem('playx_token', newToken);
+    setToken(newToken);
+    setUser(userData);
+  };
+
   const logout = () => {
     localStorage.removeItem('playx_token');
     setToken(null);
     setUser(null);
   };
 
-  const updateProfile = async (data: { name?: string; avatar?: string; password?: string }) => {
-    await api.put('/auth/profile', data);
+  const uploadAvatar = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post('/upload/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data.url;
+  };
+
+  const updateProfile = async (data: { name?: string; avatar?: string; password?: string; bio?: string }) => {
+    const res = await api.put('/auth/profile', data);
+    if (res.data?.token) {
+      localStorage.setItem('playx_token', res.data.token);
+      setToken(res.data.token);
+    }
+    if (res.data?.user) {
+      setUser((prev) => ({ ...prev, ...res.data.user }));
+    }
     await fetchCurrentUser();
+    return res.data;
   };
 
   const upgradeSubscription = async (planId = 'sub_premium') => {
@@ -75,7 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateProfile, upgradeSubscription }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, registerWithoutLogin, loginWithSocial, logout, updateProfile, uploadAvatar, upgradeSubscription }}>
       {children}
     </AuthContext.Provider>
   );
