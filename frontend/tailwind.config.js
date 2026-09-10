@@ -30,7 +30,9 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Outfit', 'Inter', 'system-ui', '-apple-system', 'sans-serif']
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Syne', '"Plus Jakarta Sans"', 'sans-serif'],
+        heading: ['Syne', '"Plus Jakarta Sans"', 'sans-serif']
       }
     },
   },
