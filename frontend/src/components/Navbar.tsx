@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
-import { Search, ChevronLeft, ChevronRight, User, LogOut, Crown, CheckCircle2, Music } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, User, LogOut, Crown, Music, Sun, Moon, Zap, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface NavbarProps {
   searchQuery?: string;
@@ -11,22 +12,11 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ searchQuery = '', onSearchChange }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, login } = useAuth();
+  const { user, logout } = useAuth();
+  const { theme, toggleTheme, isDark, isLight, isCyber, themeName } = useTheme();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const isSearchPage = location.pathname === '/search';
-
-  const handleDemoLogin = async (role: string) => {
-    try {
-      if (role === 'admin') await login('admin@example.com', 'AdminPass123');
-      else if (role === 'artist') await login('artist@example.com', 'ArtistPass123');
-      else if (role === 'premium') await login('premium@example.com', 'PremiumPass123');
-      else await login('user@example.com', 'UserPass123');
-      setDropdownOpen(false);
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   return (
     <header className="h-16 px-8 flex items-center justify-between sticky top-0 z-30 glass-nav border-b border-muse-border/30">
@@ -54,12 +44,15 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = '', onSearchChange }) => 
           <Search className="w-4 h-4 text-muse-subtext absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search songs, artists, playlists..."
             value={searchQuery}
             onChange={(e) => {
-              if (onSearchChange) onSearchChange(e.target.value);
-              if (!isSearchPage && e.target.value.trim()) {
-                navigate('/search');
+              const val = e.target.value;
+              if (onSearchChange) onSearchChange(val);
+              if (val.trim()) {
+                navigate(`/search?q=${encodeURIComponent(val)}`, { replace: isSearchPage });
+              } else if (isSearchPage) {
+                navigate('/search', { replace: true });
               }
             }}
             className="w-full bg-muse-dark/60 border border-muse-border/40 text-white text-xs rounded-full py-2 pl-9 pr-4 focus:outline-none focus:border-pink-500/60 focus:ring-1 focus:ring-pink-500/50 transition-all placeholder:text-muse-subtext/70"
@@ -74,6 +67,41 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = '', onSearchChange }) => 
           <Music className="w-3.5 h-3.5 text-pink-400" />
           <span>8 Songs</span>
         </div>
+
+        {/* Replay Cosmic Intro Button */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('playx:replay-intro'))}
+          className={`px-3 py-1.5 rounded-full border flex items-center gap-1.5 transition-all hover:scale-105 shadow-sm text-xs font-semibold ${
+            isCyber
+              ? 'bg-[#031d36]/80 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/20 shadow-cyan-950/40'
+              : 'bg-muse-dark/80 hover:bg-muse-hover border-muse-border/50 text-purple-300 hover:text-white shadow-purple-950/40'
+          }`}
+          title="Replay Cosmic Black Hole Intro"
+          aria-label="Replay Cosmic Intro"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+          <span className="hidden sm:inline">Cosmic Intro</span>
+        </button>
+
+        {/* Theme Switcher Button (Dark, Light, Cyber Neon) */}
+        <button
+          onClick={toggleTheme}
+          className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-105 shadow-sm ${
+            isCyber
+              ? 'bg-[#031d36]/80 border-cyan-500/50 text-cyan-300'
+              : 'bg-muse-dark/80 hover:bg-muse-hover border-muse-border/50 text-muse-subtext hover:text-white'
+          }`}
+          title={`Theme: ${themeName} (Click to switch)`}
+          aria-label="Toggle theme"
+        >
+          {isLight ? (
+            <Sun className="w-4 h-4 text-amber-500 hover:text-amber-400 transition-colors" />
+          ) : isCyber ? (
+            <Zap className="w-4 h-4 text-cyan-400 fill-cyan-400 hover:text-cyan-300 transition-colors" />
+          ) : (
+            <Moon className="w-4 h-4 text-purple-400 hover:text-purple-300 transition-colors" />
+          )}
+        </button>
 
         {user ? (
           <>
@@ -133,35 +161,30 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery = '', onSearchChange }) => 
                     <span>Subscription Plan</span>
                   </NavLink>
 
-                  {/* Switch Demo Accounts */}
-                  <div className="border-t border-muse-border/40 my-1 pt-1">
-                    <span className="px-4 py-1 text-[10px] font-bold text-muse-subtext uppercase block">Quick Switch Account</span>
-                    <button
-                      onClick={() => handleDemoLogin('admin')}
-                      className="w-full text-left px-4 py-1.5 text-xs text-muse-subtext hover:text-pink-400 hover:bg-muse-card transition-colors flex items-center justify-between"
-                    >
-                      <span>Admin Account</span>
-                      {user.role === 'admin' && <CheckCircle2 className="w-3.5 h-3.5 text-pink-400" />}
-                    </button>
-                    <button
-                      onClick={() => handleDemoLogin('artist')}
-                      className="w-full text-left px-4 py-1.5 text-xs text-muse-subtext hover:text-pink-400 hover:bg-muse-card transition-colors flex items-center justify-between"
-                    >
-                      <span>Artist Account</span>
-                      {user.role === 'artist' && <CheckCircle2 className="w-3.5 h-3.5 text-pink-400" />}
-                    </button>
-                    <button
-                      onClick={() => handleDemoLogin('user')}
-                      className="w-full text-left px-4 py-1.5 text-xs text-muse-subtext hover:text-pink-400 hover:bg-muse-card transition-colors flex items-center justify-between"
-                    >
-                      <span>Free User Account</span>
-                      {user.role === 'user' && user.subscription === 'Free' && <CheckCircle2 className="w-3.5 h-3.5 text-pink-400" />}
-                    </button>
-                  </div>
+
+                  {/* Theme Switch Option */}
+                  <button
+                    onClick={() => {
+                      toggleTheme();
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-muse-subtext hover:text-white hover:bg-muse-card transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      {isDark ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-purple-600" />}
+                      <span>Appearance</span>
+                    </div>
+                    <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded bg-pink-500/15 text-pink-400">
+                      {isDark ? 'Dark' : 'Light'}
+                    </span>
+                  </button>
 
                   <div className="border-t border-muse-border/40 pt-1">
                     <button
-                      onClick={() => { logout(); setDropdownOpen(false); }}
+                      onClick={() => {
+                        logout();
+                        setDropdownOpen(false);
+                        navigate('/login', { replace: true });
+                      }}
                       className="w-full text-left flex items-center gap-3 px-4 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
                     >
                       <LogOut className="w-4 h-4" />

@@ -15,15 +15,21 @@ import {
   History, 
   ShieldCheck, 
   Crown,
-  PanelLeftClose
+  PanelLeftClose,
+  LogOut,
+  Sun,
+  Moon,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
 import { Playlist } from '../types';
 import CreatePlaylistModal from './Modals/CreatePlaylistModal';
 
 const Sidebar: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const { theme, toggleTheme, isDark, isLight, isCyber, themeName } = useTheme();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
@@ -46,11 +52,11 @@ const Sidebar: React.FC = () => {
       {/* Brand Header */}
       <div className="flex items-center justify-between px-2 py-3 mb-4">
         <NavLink to="/" className="flex items-center gap-3 group">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center shadow-lg shadow-pink-500/30 group-hover:scale-105 transition-transform">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center shadow-lg shadow-pink-500/30 group-hover:scale-105 transition-transform">
             <span className="font-black text-white text-base">X</span>
           </div>
-          <span className="font-extrabold text-xl tracking-tight text-white flex items-center gap-1">
-            Play<span className="text-pink-500 font-normal">Muse</span>
+          <span className="font-display font-black text-xl tracking-wider text-white flex items-center gap-0.5">
+            PLAY<span className="text-pink-500">X</span>
           </span>
         </NavLink>
         <button className="text-muse-subtext hover:text-white transition-colors p-1 rounded-md">
@@ -243,6 +249,47 @@ const Sidebar: React.FC = () => {
             <span>Upgrade</span>
           </NavLink>
         </div>
+
+        {/* Theme Toggle Button */}
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-muse-subtext hover:text-white hover:bg-muse-hover/60 transition-colors"
+          title={`Theme: ${themeName} (Click to switch)`}
+        >
+          <div className="flex items-center gap-3">
+            {isLight ? (
+              <Sun className="w-4 h-4 text-amber-500" />
+            ) : isCyber ? (
+              <Zap className="w-4 h-4 text-cyan-400 fill-cyan-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-purple-400" />
+            )}
+            <span className="truncate max-w-[100px]">{themeName}</span>
+          </div>
+          <span
+            className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+              isCyber
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                : isLight
+                ? 'bg-purple-100 text-purple-700'
+                : 'bg-pink-500/15 text-pink-400'
+            }`}
+          >
+            {theme}
+          </span>
+        </button>
+
+        {/* Logout Option */}
+        <button
+          onClick={() => {
+            logout();
+            navigate('/login', { replace: true });
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Log out</span>
+        </button>
       </div>
 
       {/* Playlist Creation Modal */}
