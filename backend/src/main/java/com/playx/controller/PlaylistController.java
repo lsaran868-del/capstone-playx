@@ -2,10 +2,7 @@ package com.playx.controller;
 
 import com.playx.model.Playlist;
 import com.playx.model.PlaylistSong;
-import com.playx.repository.PlaylistRepository;
-import com.playx.repository.PlaylistSongRepository;
-import com.playx.repository.SongRepository;
-import com.playx.repository.UserRepository;
+import com.playx.repository.*;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -31,6 +28,12 @@ public class PlaylistController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ArtistRepository artistRepository;
+
+    @Autowired
+    private FavoriteRepository favoriteRepository;
 
     @GetMapping
     public ResponseEntity<?> getPlaylists() {
@@ -78,6 +81,26 @@ public class PlaylistController {
         }
 
         Playlist p = playlistOpt.get();
+
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserId = null;
+        String currentUserRole = null;
+        if (auth != null && auth.getPrincipal() instanceof Claims) {
+            Claims claims = (Claims) auth.getPrincipal();
+            currentUserId = claims.getSubject();
+            currentUserRole = claims.get("role", String.class);
+        }
+
+        // Private playlist authorization check
+        if (p.getIsPublic() != null && !p.getIsPublic()) {
+            boolean isOwner = currentUserId != null && currentUserId.equals(p.getUserId());
+            boolean isAdmin = "admin".equalsIgnoreCase(currentUserRole);
+            if (!isOwner && !isAdmin) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "This playlist is private and can only be viewed by its owner"));
+            }
+        }
+
         Map<String, Object> response = new HashMap<>();
         response.put("id", p.getId());
         response.put("userId", p.getUserId());
@@ -98,6 +121,7 @@ public class PlaylistController {
         // Get playlist songs
         List<PlaylistSong> psList = playlistSongRepository.findByPlaylistIdOrderByPositionAscAddedAtAsc(id);
         List<Map<String, Object>> songsResponse = new ArrayList<>();
+        final String finalUserId = currentUserId;
 
         for (PlaylistSong ps : psList) {
             songRepository.findById(ps.getSongId()).ifPresent(s -> {
@@ -113,11 +137,19 @@ public class PlaylistController {
                 smap.put("plays_count", s.getPlaysCount());
                 smap.put("added_at", ps.getAddedAt());
                 smap.put("position", ps.getPosition());
-                
-                // Add artist name
-                userRepository.findById(s.getArtistId()).ifPresent(artistUser -> {
-                    smap.put("artist_name", artistUser.getName());
+
+                if (finalUserId != null) {
+                    smap.put("is_favorite", favoriteRepository.existsByUserIdAndSongId(finalUserId, s.getId()));
+                } else {
+                    smap.put("is_favorite", false);
+                }
+
+                // Add correct artist name and image
+                artistRepository.findById(s.getArtistId()).ifPresent(artist -> {
+                    smap.put("artist_name", artist.getName());
+                    smap.put("artist_image", artist.getImage());
                 });
+
                 songsResponse.add(smap);
             });
         }
@@ -145,15 +177,15 @@ public class PlaylistController {
         }
 
         String playlistId = "pl_" + UUID.randomUUID().toString().substring(0, 8);
-        String defaultCover = coverArt != null ? coverArt : "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=600&q=80";
+        String defaultCover = coverArt != null && !coverArt.trim().isEmpty() ? coverArt : "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=600&q=80";
 
         Playlist playlist = Playlist.builder()
                 .id(playlistId)
                 .userId(userId)
-                .name(name)
+                .name(name.trim())
                 .description(description != null ? description : "")
                 .coverArt(defaultCover)
-                .isPublic(isPublic)
+                .isPublic(isPublic != null ? isPublic : true)
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -162,6 +194,10 @@ public class PlaylistController {
         Map<String, Object> response = new HashMap<>();
         response.put("message", "Playlist created successfully");
         response.put("playlist", playlist);
+        response.put("id", playlist.getId());
+        response.put("name", playlist.getName());
+        response.put("is_public", playlist.getIsPublic());
+        response.put("user_id", playlist.getUserId());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -187,14 +223,22 @@ public class PlaylistController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Access denied"));
         }
 
-        if (body.containsKey("name")) playlist.setName((String) body.get("name"));
-        if (body.containsKey("description")) playlist.setDescription((String) body.get("description"));
-        if (body.containsKey("cover_art")) playlist.setCoverArt((String) body.get("cover_art"));
-        if (body.containsKey("is_public")) playlist.setIsPublic((Boolean) body.get("is_public"));
+        if (body.containsKey("name") && body.get("name") != null) {
+            playlist.setName(((String) body.get("name")).trim());
+        }
+        if (body.containsKey("description") && body.get("description") != null) {
+            playlist.setDescription((String) body.get("description"));
+        }
+        if (body.containsKey("cover_art") && body.get("cover_art") != null) {
+            playlist.setCoverArt((String) body.get("cover_art"));
+        }
+        if (body.containsKey("is_public")) {
+            playlist.setIsPublic((Boolean) body.get("is_public"));
+        }
 
         playlistRepository.save(playlist);
 
-        return ResponseEntity.ok(Map.of("message", "Playlist updated successfully"));
+        return ResponseEntity.ok(Map.of("message", "Playlist updated successfully", "playlist", playlist));
     }
 
     @DeleteMapping("/{id}")
@@ -224,6 +268,25 @@ public class PlaylistController {
 
     @PostMapping("/{id}/songs")
     public ResponseEntity<?> addSongToPlaylist(@PathVariable String id, @RequestBody Map<String, String> body) {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof Claims)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized"));
+        }
+
+        Claims claims = (Claims) auth.getPrincipal();
+        String userId = claims.getSubject();
+        String role = claims.get("role", String.class);
+
+        Optional<Playlist> playlistOpt = playlistRepository.findById(id);
+        if (playlistOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Playlist not found"));
+        }
+
+        Playlist playlist = playlistOpt.get();
+        if (!playlist.getUserId().equals(userId) && !"admin".equalsIgnoreCase(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Access denied: only owner or admin can add songs to this playlist"));
+        }
+
         String songId = body.get("song_id");
         if (songId == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Song ID is required"));
@@ -231,12 +294,13 @@ public class PlaylistController {
 
         Optional<PlaylistSong> psOpt = playlistSongRepository.findByPlaylistIdAndSongId(id, songId);
         if (psOpt.isEmpty()) {
+            int nextPosition = playlistSongRepository.findByPlaylistIdOrderByPositionAscAddedAtAsc(id).size() + 1;
             String psId = "ps_" + UUID.randomUUID().toString().substring(0, 8);
             playlistSongRepository.save(PlaylistSong.builder()
                     .id(psId)
                     .playlistId(id)
                     .songId(songId)
-                    .position(1)
+                    .position(nextPosition)
                     .addedAt(LocalDateTime.now())
                     .build());
         }
@@ -246,6 +310,25 @@ public class PlaylistController {
 
     @DeleteMapping("/{id}/songs/{songId}")
     public ResponseEntity<?> removeSongFromPlaylist(@PathVariable String id, @PathVariable String songId) {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof Claims)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized"));
+        }
+
+        Claims claims = (Claims) auth.getPrincipal();
+        String userId = claims.getSubject();
+        String role = claims.get("role", String.class);
+
+        Optional<Playlist> playlistOpt = playlistRepository.findById(id);
+        if (playlistOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Playlist not found"));
+        }
+
+        Playlist playlist = playlistOpt.get();
+        if (!playlist.getUserId().equals(userId) && !"admin".equalsIgnoreCase(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Access denied: only owner or admin can remove songs from this playlist"));
+        }
+
         playlistSongRepository.deleteByPlaylistIdAndSongId(id, songId);
         return ResponseEntity.ok(Map.of("message", "Song removed from playlist"));
     }

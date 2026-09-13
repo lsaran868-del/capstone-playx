@@ -12,4 +12,7 @@ public interface PlaylistSongRepository extends JpaRepository<PlaylistSong, Stri
 
     @Transactional
     void deleteByPlaylistIdAndSongId(String playlistId, String songId);
+
+    @Transactional
+    void deleteBySongId(String songId);
 }

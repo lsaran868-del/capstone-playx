@@ -24,7 +24,7 @@ public class PlaylistSong {
     @Column(name = "song_id", nullable = false, length = 50)
     private String songId;
 
-    @Column(nullable = false)
+    @Column(name = "`position`", nullable = false)
     private Integer position = 1;
 
     @Column(name = "added_at")
