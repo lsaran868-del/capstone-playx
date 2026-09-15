@@ -45,9 +45,9 @@ public class WebSecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // Allow static resources & H2 console
-                .requestMatchers(AntPathRequestMatcher.antMatcher("/h2-console/**"), AntPathRequestMatcher.antMatcher("/public/**"), AntPathRequestMatcher.antMatcher("/audio/**"), AntPathRequestMatcher.antMatcher("/api/health")).permitAll()
+                .requestMatchers(AntPathRequestMatcher.antMatcher("/h2-console/**"), AntPathRequestMatcher.antMatcher("/public/**"), AntPathRequestMatcher.antMatcher("/audio/**"), AntPathRequestMatcher.antMatcher("/uploads/**"), AntPathRequestMatcher.antMatcher("/uploads/covers/**"), AntPathRequestMatcher.antMatcher("/api/health")).permitAll()
                 // Auth paths
-                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/register"), AntPathRequestMatcher.antMatcher("/api/auth/login"), AntPathRequestMatcher.antMatcher("/api/auth/logout")).permitAll()
+                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/register"), AntPathRequestMatcher.antMatcher("/api/auth/login"), AntPathRequestMatcher.antMatcher("/api/auth/social-login"), AntPathRequestMatcher.antMatcher("/api/auth/logout")).permitAll()
                 // Permissive GET routes
                 .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs"), AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs/recommended"), AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs/popular"), AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs/new-releases"), AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs/{id}")).permitAll()
                 .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs/{id}/stream")).permitAll()
@@ -57,6 +57,9 @@ public class WebSecurityConfig {
                 .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/playlists"), AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/playlists/{id}")).permitAll()
                 .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/search")).permitAll()
                 .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/subscriptions/plans")).permitAll()
+                // Song management (Admin only)
+                .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.POST, "/api/songs/upload")).hasRole("admin")
+                .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.DELETE, "/api/songs/{id}")).hasRole("admin")
                 // Require Auth for writing/management
                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/admin/**")).hasRole("admin")
                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/artists/dashboard/**")).hasAnyRole("artist", "admin")
