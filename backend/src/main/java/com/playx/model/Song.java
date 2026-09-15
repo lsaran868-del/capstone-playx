@@ -38,11 +38,17 @@ public class Song {
     @Column(name = "cover_art", columnDefinition = "TEXT")
     private String coverArt;
 
+    @Column(name = "file_path", columnDefinition = "TEXT")
+    private String filePath;
+
     @Column(name = "plays_count")
     private Integer playsCount = 0;
 
     @Column(name = "release_date")
     private LocalDate releaseDate = LocalDate.now();
+
+    @Column(name = "lyrics", columnDefinition = "TEXT")
+    private String lyrics;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();

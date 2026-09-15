@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface SongRepository extends JpaRepository<Song, String> {
     
-    @Query(value = "SELECT s.* FROM songs s ORDER BY RANDOM() LIMIT :limit", nativeQuery = true)
+    @Query(value = "SELECT s.* FROM songs s ORDER BY RAND() LIMIT :limit", nativeQuery = true)
     List<Song> findRecommended(@Param("limit") int limit);
 
     @Query(value = "SELECT s.* FROM songs s ORDER BY s.plays_count DESC LIMIT :limit", nativeQuery = true)
