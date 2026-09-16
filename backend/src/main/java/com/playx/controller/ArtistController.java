@@ -5,6 +5,7 @@ import com.playx.model.Artist;
 import com.playx.model.Song;
 import com.playx.repository.AlbumRepository;
 import com.playx.repository.ArtistRepository;
+import com.playx.repository.FavoriteRepository;
 import com.playx.repository.SongRepository;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,9 @@ public class ArtistController {
     @Autowired
     private AlbumRepository albumRepository;
 
+    @Autowired
+    private FavoriteRepository favoriteRepository;
+
     @GetMapping
     public ResponseEntity<?> getAllArtists() {
         List<Artist> artists = artistRepository.findAllByOrderByMonthlyListenersDesc();
@@ -47,16 +51,67 @@ public class ArtistController {
         List<Song> songs = songRepository.findByArtistId(id);
         List<Album> albums = albumRepository.findByArtistId(id);
 
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserId = null;
+        if (auth != null && auth.getPrincipal() instanceof Claims) {
+            currentUserId = ((Claims) auth.getPrincipal()).getSubject();
+        }
+
+        List<Map<String, Object>> enrichedSongs = new ArrayList<>();
+        for (Song s : songs) {
+            Map<String, Object> smap = new HashMap<>();
+            smap.put("id", s.getId());
+            smap.put("title", s.getTitle());
+            smap.put("artist_id", s.getArtistId());
+            smap.put("artist_name", artist.getName());
+            smap.put("artist_image", artist.getImage());
+            smap.put("album_id", s.getAlbumId());
+            smap.put("genre_id", s.getGenreId());
+            smap.put("audio_url", s.getAudioUrl());
+            smap.put("duration", s.getDuration());
+            smap.put("cover_art", s.getCoverArt());
+            smap.put("plays_count", s.getPlaysCount());
+            smap.put("release_date", s.getReleaseDate());
+
+            if (currentUserId != null) {
+                smap.put("is_favorite", favoriteRepository.existsByUserIdAndSongId(currentUserId, s.getId()));
+            } else {
+                smap.put("is_favorite", false);
+            }
+
+            albumRepository.findById(s.getAlbumId()).ifPresent(alb -> {
+                smap.put("album_title", alb.getTitle());
+            });
+
+            enrichedSongs.add(smap);
+        }
+
+        List<Map<String, Object>> enrichedAlbums = new ArrayList<>();
+        for (Album a : albums) {
+            Map<String, Object> amap = new HashMap<>();
+            amap.put("id", a.getId());
+            amap.put("title", a.getTitle());
+            amap.put("artist_id", a.getArtistId());
+            amap.put("artist_name", artist.getName());
+            amap.put("cover_art", a.getCoverArt());
+            amap.put("release_year", a.getReleaseYear());
+            amap.put("genre", a.getGenre());
+            enrichedAlbums.add(amap);
+        }
+
         Map<String, Object> response = new HashMap<>();
         response.put("id", artist.getId());
         response.put("userId", artist.getUserId());
+        response.put("user_id", artist.getUserId());
         response.put("name", artist.getName());
         response.put("bio", artist.getBio());
         response.put("image", artist.getImage());
         response.put("isVerified", artist.getIsVerified());
+        response.put("is_verified", artist.getIsVerified());
         response.put("monthlyListeners", artist.getMonthlyListeners());
-        response.put("songs", songs);
-        response.put("albums", albums);
+        response.put("monthly_listeners", artist.getMonthlyListeners());
+        response.put("songs", enrichedSongs);
+        response.put("albums", enrichedAlbums);
 
         return ResponseEntity.ok(response);
     }

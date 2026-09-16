@@ -14,4 +14,7 @@ public interface FavoriteRepository extends JpaRepository<Favorite, String> {
 
     @Transactional
     void deleteByUserIdAndSongId(String userId, String songId);
+
+    @Transactional
+    void deleteBySongId(String songId);
 }
