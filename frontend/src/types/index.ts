@@ -23,12 +23,14 @@ export interface Song {
   genre_id?: string;
   genre_name?: string;
   audio_url: string;
+  file_path?: string;
   duration: number;
   cover_art?: string;
   plays_count?: number;
   release_date?: string;
   is_favorite?: boolean;
   added_at?: string;
+  lyrics?: string;
 }
 
 export interface Artist {
@@ -57,12 +59,17 @@ export interface Album {
 export interface Playlist {
   id: string;
   user_id: string;
+  userId?: string;
   user_name?: string;
   name: string;
   description?: string;
   cover_art?: string;
+  coverArt?: string;
   is_public?: boolean;
+  isPublic?: boolean;
   songs?: Song[];
+  song_count?: number;
+  songs_count?: number;
   created_at?: string;
 }
 
