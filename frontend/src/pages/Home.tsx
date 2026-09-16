@@ -29,6 +29,7 @@ const Home: React.FC = () => {
   const [newReleases, setNewReleases] = useState<Song[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Interactive AI Music Generation Prompt State
@@ -44,18 +45,22 @@ const Home: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [recRes, popRes, newRes, artRes, albRes] = await Promise.all([
+        const [recRes, popRes, newRes, artRes, albRes, histRes] = await Promise.allSettled([
           api.get('/songs/recommended'),
           api.get('/songs/popular'),
           api.get('/songs/new-releases'),
           api.get('/artists'),
-          api.get('/albums')
+          api.get('/albums'),
+          api.get('/history')
         ]);
-        setRecommended(recRes.data);
-        setPopular(popRes.data);
-        setNewReleases(newRes.data);
-        setArtists(artRes.data);
-        setAlbums(albRes.data);
+        if (recRes.status === 'fulfilled') setRecommended(recRes.value.data);
+        if (popRes.status === 'fulfilled') setPopular(popRes.value.data);
+        if (newRes.status === 'fulfilled') setNewReleases(newRes.value.data);
+        if (artRes.status === 'fulfilled') setArtists(artRes.value.data);
+        if (albRes.status === 'fulfilled') setAlbums(albRes.value.data);
+        if (histRes.status === 'fulfilled' && Array.isArray(histRes.value.data)) {
+          setRecentlyPlayed(histRes.value.data);
+        }
       } catch (err) {
         console.error('Failed to fetch home dashboard data:', err);
       } finally {
@@ -129,7 +134,7 @@ const Home: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4">
         <div className="muse-orb animate-pulse"></div>
-        <p className="text-xs text-muse-subtext font-medium tracking-wider">Loading ElevMuse Dashboard...</p>
+        <p className="text-xs text-muse-subtext font-medium tracking-wider">Loading PlayX Music Dashboard...</p>
       </div>
     );
   }
@@ -306,6 +311,37 @@ const Home: React.FC = () => {
           ))}
         </div>
       </section>
+
+      {/* Recently Played */}
+      {recentlyPlayed.length > 0 && (
+        <section className="space-y-4 pt-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Clock className="w-5 h-5 text-pink-400" />
+              <span>Recently Played</span>
+            </h2>
+            <button
+              onClick={() => navigate('/history')}
+              className="text-xs text-muse-subtext hover:text-white transition-colors font-semibold"
+            >
+              See all
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {recentlyPlayed.slice(0, 6).map((song) => (
+              <Card
+                key={`recent-${song.id}`}
+                id={song.id}
+                title={song.title}
+                subtitle={song.artist_name || 'Artist'}
+                image={song.cover_art || song.album_cover}
+                type="song"
+                onPlay={() => playSong(song, recentlyPlayed)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Recommended Songs */}
       <section className="space-y-4 pt-4">

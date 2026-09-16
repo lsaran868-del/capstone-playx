@@ -7,11 +7,12 @@ interface CardProps {
   subtitle?: string;
   image?: string;
   type?: 'song' | 'artist' | 'album' | 'playlist';
+  badge?: React.ReactNode;
   onClick?: () => void;
   onPlay?: () => void;
 }
 
-const Card: React.FC<CardProps> = ({ title, subtitle, image, type = 'song', onClick, onPlay }) => {
+const Card: React.FC<CardProps> = ({ title, subtitle, image, type = 'song', badge, onClick, onPlay }) => {
   const isArtist = type === 'artist';
 
   return (
@@ -25,6 +26,11 @@ const Card: React.FC<CardProps> = ({ title, subtitle, image, type = 'song', onCl
           alt={title}
           className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${isArtist ? 'rounded-full' : 'rounded-xl'}`}
         />
+        {badge && (
+          <div className="absolute top-2 left-2 z-10">
+            {badge}
+          </div>
+        )}
         {onPlay && (
           <button
             onClick={(e) => { e.stopPropagation(); onPlay(); }}
