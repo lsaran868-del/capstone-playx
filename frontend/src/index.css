@@ -2,6 +2,90 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary-color: #ec4899;
+  --secondary-color: #9333ea;
+  --accent-color: #f43f5e;
+  --background-color: #0c0514;
+  --surface-color: rgba(22, 10, 32, 0.75);
+  --text-color: #ffffff;
+  --subtext-color: #9d8ba9;
+  --border-color: rgba(236, 72, 153, 0.2);
+  --card-bg: rgba(20, 10, 30, 0.85);
+  --glow-color: rgba(236, 72, 153, 0.35);
+}
+
+html.dark {
+  --primary-color: #ec4899;
+  --secondary-color: #9333ea;
+  --accent-color: #f43f5e;
+  --background-color: #0c0514;
+  --surface-color: rgba(22, 10, 32, 0.75);
+  --text-color: #ffffff;
+  --subtext-color: #9d8ba9;
+  --border-color: rgba(236, 72, 153, 0.2);
+  --card-bg: rgba(20, 10, 30, 0.85);
+  --glow-color: rgba(236, 72, 153, 0.35);
+}
+
+html.light {
+  --primary-color: #db2777;
+  --secondary-color: #7e22ce;
+  --accent-color: #e11d48;
+  --background-color: #f7f5fc;
+  --surface-color: rgba(255, 255, 255, 0.9);
+  --text-color: #160c28;
+  --subtext-color: #6d5e82;
+  --border-color: rgba(219, 39, 119, 0.25);
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --glow-color: rgba(219, 39, 119, 0.2);
+}
+
+html.cyber {
+  --primary-color: #00f0ff;
+  --secondary-color: #a855f7;
+  --accent-color: #00ff9d;
+  --background-color: #040814;
+  --surface-color: rgba(6, 16, 36, 0.85);
+  --text-color: #e2f1ff;
+  --subtext-color: #8aa9cb;
+  --border-color: rgba(0, 240, 255, 0.25);
+  --card-bg: rgba(6, 16, 36, 0.9);
+  --glow-color: rgba(0, 240, 255, 0.4);
+}
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', Inter, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Syne', 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.025em;
+  }
+}
+
+/* Vinyl rotation animations */
+@keyframes spinVinyl {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-vinyl {
+  animation: spinVinyl 24s linear infinite;
+}
+
+.animate-spin-vinyl.paused {
+  animation-play-state: paused;
+}
+
 /* ElevMuse styled custom scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
@@ -20,6 +104,67 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #461763;
+}
+
+/* Hide scrollbars completely where requested (such as full-screen player modal) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+.playx-now-playing-scope,
+.playx-now-playing-scope * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.playx-now-playing-scope ::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Background Brand Watermark */
+.playx-bg-watermark {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.playx-bg-watermark-text {
+  font-family: 'Syne', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 900;
+  font-size: clamp(6rem, 18vw, 22rem);
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.045);
+  transform: rotate(-6deg);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  text-shadow: 0 0 100px rgba(184, 28, 134, 0.12);
+  filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.5));
+  transition: opacity 0.3s ease;
+}
+
+.playx-bg-watermark-accent {
+  background: linear-gradient(135deg, rgba(224, 43, 136, 0.12), rgba(157, 78, 221, 0.12));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* Background Radial Glow Utility */
@@ -116,4 +261,442 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 .equalizer-bar:nth-child(2) { animation-delay: 0.2s; }
 .equalizer-bar:nth-child(3) { animation-delay: 0.4s; }
+
+/* ========================================================
+   LIGHT THEME OVERRIDES (Optional Mode - Dark is Default)
+   Preserves the signature PLAYX Pink & Purple Brand Colors
+   ======================================================== */
+html:not(.dark) {
+  color-scheme: light;
+}
+
+html:not(.dark) body {
+  background-color: #f7f5fc !important;
+  color: #160c28 !important;
+}
+
+html:not(.dark) .bg-muse-dark {
+  background-color: #fcfbfe !important;
+}
+
+html:not(.dark) .bg-muse-radial {
+  background-color: #f7f5fc !important;
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(224, 43, 136, 0.14) 0%, rgba(157, 78, 221, 0.09) 35%, rgba(247, 245, 252, 0) 70%),
+    radial-gradient(circle at 10% 20%, rgba(224, 43, 136, 0.06) 0%, rgba(247, 245, 252, 0) 50%) !important;
+}
+
+/* Glass UI in Light Mode */
+html:not(.dark) .glass-panel {
+  background: rgba(255, 255, 255, 0.84) !important;
+  border-color: rgba(224, 43, 136, 0.2) !important;
+  box-shadow: 0 12px 32px rgba(157, 78, 221, 0.08) !important;
+}
+
+html:not(.dark) .glass-nav {
+  background: rgba(253, 252, 255, 0.9) !important;
+  border-color: rgba(224, 43, 136, 0.18) !important;
+}
+
+html:not(.dark) aside {
+  background: #fcfbfe !important;
+  border-color: rgba(224, 43, 136, 0.16) !important;
+  box-shadow: 4px 0 20px rgba(157, 78, 221, 0.04) !important;
+}
+
+html:not(.dark) footer {
+  background: rgba(253, 252, 255, 0.95) !important;
+  border-color: rgba(224, 43, 136, 0.18) !important;
+  box-shadow: 0 -4px 20px rgba(157, 78, 221, 0.05) !important;
+}
+
+/* Text Hierarchy in Light Mode */
+html:not(.dark) h1,
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4,
+html:not(.dark) .font-display {
+  color: #160c28;
+}
+
+html:not(.dark) .text-white {
+  color: #160c28;
+}
+
+/* Preserve pure white text inside gradient buttons, badges, and active pills */
+html:not(.dark) [class*="bg-gradient-"] .text-white,
+html:not(.dark) [class*="bg-gradient-"],
+html:not(.dark) [class*="from-pink-"],
+html:not(.dark) [class*="from-purple-"],
+html:not(.dark) [class*="bg-pink-500"],
+html:not(.dark) [class*="bg-purple-600"],
+html:not(.dark) .keep-white,
+html:not(.dark) button.bg-gradient-to-r *,
+html:not(.dark) button[class*="bg-gradient"],
+html:not(.dark) a.bg-gradient-to-r,
+html:not(.dark) a.bg-gradient-to-r * {
+  color: #ffffff !important;
+}
+
+/* Ensure headings, song titles, artists, and labels stay crisp white on the starry background in any theme */
+html:not(.dark) .playx-now-playing-scope h1,
+html:not(.dark) .playx-now-playing-scope h2,
+html:not(.dark) .playx-now-playing-scope h3,
+html:not(.dark) .playx-now-playing-scope h4,
+html:not(.dark) .playx-now-playing-scope p,
+html:not(.dark) .playx-now-playing-scope span,
+html:not(.dark) .playx-now-playing-scope div,
+html:not(.dark) .playx-now-playing-scope svg,
+html:not(.dark) .playx-now-playing-scope .text-white {
+  color: #ffffff !important;
+}
+
+html:not(.dark) .playx-now-playing-scope .text-white\/90 {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+html:not(.dark) .playx-now-playing-scope .text-white\/80 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+html:not(.dark) .playx-now-playing-scope .text-white\/70 {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+html:not(.dark) .playx-now-playing-scope .text-white\/60 {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+html:not(.dark) .playx-now-playing-scope .text-white\/50 {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+html:not(.dark) .playx-now-playing-scope .text-white\/40 {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+html:not(.dark) .text-muse-subtext {
+  color: #6d5e82 !important;
+}
+
+html:not(.dark) aside a:hover:not([class*="bg-gradient"]) {
+  color: #e02b88 !important;
+}
+
+html:not(.dark) .bg-muse-card {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba(224, 43, 136, 0.2) !important;
+  color: #160c28 !important;
+}
+
+html:not(.dark) .bg-muse-card\/60,
+html:not(.dark) .bg-muse-card\/80 {
+  background-color: rgba(255, 255, 255, 0.78) !important;
+  border-color: rgba(224, 43, 136, 0.2) !important;
+}
+
+html:not(.dark) .bg-muse-dark\/60,
+html:not(.dark) .bg-muse-dark\/80 {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(224, 43, 136, 0.2) !important;
+  color: #160c28 !important;
+}
+
+html:not(.dark) .hover\:bg-muse-hover:hover,
+html:not(.dark) .hover\:bg-muse-hover\/70:hover,
+html:not(.dark) .hover\:bg-muse-hover\/50:hover,
+html:not(.dark) .hover\:bg-muse-hover\/60:hover {
+  background-color: rgba(243, 236, 252, 0.9) !important;
+}
+
+html:not(.dark) input {
+  color: #160c28 !important;
+}
+
+html:not(.dark) input::placeholder {
+  color: #8c7d9e !important;
+}
+
+/* Light Mode Range Slider */
+html:not(.dark) input[type="range"]::-webkit-slider-runnable-track {
+  background: #e4d8f0;
+}
+
+/* Light Mode Scrollbars */
+html:not(.dark) ::-webkit-scrollbar-track {
+  background: #f1ecf7;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: #d8cce8;
+  border: 1px solid rgba(224, 43, 136, 0.2);
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #c3b2db;
+}
+
+/* Light Mode PLAYX Background Watermark */
+html:not(.dark) .playx-bg-watermark-text {
+  color: rgba(124, 58, 237, 0.05) !important;
+  text-shadow: 0 0 80px rgba(224, 43, 136, 0.1) !important;
+  filter: none !important;
+}
+
+html:not(.dark) .playx-bg-watermark-accent {
+  background: linear-gradient(135deg, rgba(224, 43, 136, 0.14), rgba(157, 78, 221, 0.14)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+}
+
+/* ========================================================
+   CYBER NEON THEME (Futuristic Synthwave / Electric Cyan)
+   ======================================================== */
+html.cyber body {
+  background-color: #040814 !important;
+  color: #e2f1ff !important;
+}
+
+html.cyber .bg-muse-dark {
+  background-color: #030712 !important;
+}
+
+html.cyber .bg-muse-radial {
+  background-color: #040814 !important;
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.35) 0%, rgba(14, 52, 98, 0.28) 35%, rgba(4, 8, 20, 0) 70%),
+    radial-gradient(circle at 10% 20%, rgba(255, 0, 128, 0.16) 0%, rgba(4, 8, 20, 0) 50%) !important;
+}
+
+/* Glass UI in Cyber Neon Mode */
+html.cyber .glass-panel {
+  background: rgba(6, 16, 36, 0.75) !important;
+  border-color: rgba(0, 240, 255, 0.22) !important;
+  box-shadow: 0 12px 36px rgba(0, 240, 255, 0.08) !important;
+}
+
+html.cyber .glass-nav {
+  background: rgba(4, 10, 24, 0.82) !important;
+  border-color: rgba(0, 240, 255, 0.2) !important;
+}
+
+html.cyber aside {
+  background: #050b18 !important;
+  border-color: rgba(0, 240, 255, 0.2) !important;
+  box-shadow: 4px 0 24px rgba(0, 240, 255, 0.05) !important;
+}
+
+html.cyber footer {
+  background: rgba(4, 10, 24, 0.95) !important;
+  border-color: rgba(0, 240, 255, 0.22) !important;
+  box-shadow: 0 -4px 24px rgba(0, 240, 255, 0.08) !important;
+}
+
+html.cyber .bg-muse-card {
+  background-color: rgba(8, 20, 44, 0.75) !important;
+  border-color: rgba(0, 240, 255, 0.2) !important;
+}
+
+html.cyber .bg-muse-card\/60,
+html.cyber .bg-muse-card\/80 {
+  background-color: rgba(6, 17, 38, 0.7) !important;
+  border-color: rgba(0, 240, 255, 0.2) !important;
+}
+
+html.cyber .bg-muse-dark\/60,
+html.cyber .bg-muse-dark\/80 {
+  background-color: rgba(4, 12, 28, 0.85) !important;
+  border-color: rgba(0, 240, 255, 0.2) !important;
+}
+
+html.cyber .hover\:bg-muse-hover:hover,
+html.cyber .hover\:bg-muse-hover\/70:hover,
+html.cyber .hover\:bg-muse-hover\/60:hover,
+html.cyber .hover\:bg-muse-hover\/50:hover,
+html.cyber .hover\:bg-muse-hover\/30:hover {
+  background-color: rgba(0, 240, 255, 0.14) !important;
+}
+
+html.cyber .text-muse-subtext {
+  color: #8aa9cb !important;
+}
+
+html.cyber .equalizer-bar {
+  background: linear-gradient(to top, #00f0ff, #00ff9d) !important;
+}
+
+html.cyber .muse-orb {
+  background: radial-gradient(circle at 35% 30%, #a5f3fc 0%, #00f0ff 40%, #0369a1 75%, #020617 100%) !important;
+}
+
+html.cyber .playx-bg-watermark-text {
+  color: rgba(0, 240, 255, 0.045) !important;
+  text-shadow: 0 0 90px rgba(0, 240, 255, 0.2) !important;
+}
+
+html.cyber .playx-bg-watermark-accent {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.35), rgba(255, 0, 128, 0.3)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+}
+
+html.cyber ::-webkit-scrollbar-track {
+  background: #040814;
+}
+
+html.cyber ::-webkit-scrollbar-thumb {
+  background: #0e2246;
+  border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+html.cyber ::-webkit-scrollbar-thumb:hover {
+  background: #14356c;
+}
+
+/* =========================================================
+   PlayX Cosmic Black Hole Intro Sequence Styles
+   ========================================================= */
+
+@keyframes blackhole-spin {
+  0% {
+    transform: rotate(0deg) scale(0.95);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.05);
+  }
+  100% {
+    transform: rotate(360deg) scale(0.95);
+  }
+}
+
+@keyframes blackhole-spin-fast {
+  0% {
+    transform: rotate(0deg) scale(0.98);
+  }
+  100% {
+    transform: rotate(360deg) scale(1.02);
+  }
+}
+
+@keyframes singularity-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 40px rgba(168, 85, 247, 0.4), inset 0 0 50px #000;
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 90px rgba(0, 240, 255, 0.6), inset 0 0 60px #000;
+  }
+}
+
+@keyframes shockwave-burst {
+  0% {
+    transform: scale(0.3);
+    opacity: 1;
+    filter: drop-shadow(0 0 10px #00f0ff);
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+    filter: drop-shadow(0 0 60px #ec4899);
+  }
+}
+
+@keyframes light-sweep {
+  0% {
+    transform: translateX(-150%) skewX(-25deg);
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(180%) skewX(-25deg);
+    opacity: 0;
+  }
+}
+
+@keyframes photon-ring-rotate {
+  0% {
+    transform: rotate(0deg) scaleX(1.4) scaleY(0.65);
+  }
+  100% {
+    transform: rotate(360deg) scaleX(1.4) scaleY(0.65);
+  }
+}
+
+@keyframes star-float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-20px) translateX(15px);
+    opacity: 0.9;
+  }
+}
+
+.animate-blackhole-spin {
+  animation: blackhole-spin 18s linear infinite;
+}
+
+.animate-blackhole-fast {
+  animation: blackhole-spin-fast 4s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.animate-singularity-pulse {
+  animation: singularity-pulse 3s ease-in-out infinite;
+}
+
+.animate-shockwave {
+  animation: shockwave-burst 1.6s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+}
+
+.animate-light-sweep {
+  animation: light-sweep 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.animate-photon-ring {
+  animation: photon-ring-rotate 12s linear infinite;
+}
+
+.cosmic-gradient-text {
+  background: linear-gradient(135deg, #ffffff 0%, #a5f3fc 35%, #c084fc 70%, #ec4899 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes slowKenBurns {
+  0% {
+    transform: scale(1.04) translate(0%, 0%);
+  }
+  50% {
+    transform: scale(1.15) translate(-1.5%, -1.2%);
+  }
+  100% {
+    transform: scale(1.04) translate(0%, 0%);
+  }
+}
+
+.animate-ken-burns {
+  animation: slowKenBurns 26s ease-in-out infinite alternate;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
 

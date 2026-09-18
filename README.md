@@ -51,8 +51,9 @@
 ## 🛠️ Technology Stack
 
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, React Router v6, Axios
-- **Backend**: Node.js, Express, TypeScript, JWT (`jsonwebtoken`), `bcryptjs`, RESTful APIs
-- **Database**: PostgreSQL (`pg` driver) with fallback data engine for instant zero-dependency execution
+- **Backend**: Java 17+, Spring Boot 3, Spring Security, Spring Data JPA, JWT (`jjwt`), Maven
+- **Database**: MySQL 8+ relational database (`PlayX_db` on `localhost:3306`)
+- **Audio Streaming**: Local high-fidelity MP3 music tracks bundled in `public/audio/`, HTTP byte-range audio streaming
 - **Styling**: Modern dark mode with Glassmorphism backdrop filters and custom responsive layout
 
 ---
@@ -70,6 +71,20 @@ For fast testing and demo evaluation, use these pre-seeded accounts:
 
 ---
 
+## 🎵 Pre-Loaded Audio Catalog
+
+PLAYX comes bundled with offline-ready, high-quality royalty-free MP3 music audios spanning all 6 genres:
+- **Synthwave**: *Midnight Neon Drive*, *Retro Sunset Boulevard*, *Miami Nights Outrun*
+- **Pop**: *Summer Breeze Vibes*, *Party Lights & City Glow*, *Golden Hour Melody*
+- **Rock**: *Thunder Strike*, *Rebel Road Blaze*, *High Octane Anthem*
+- **Lo-Fi Beats**: *Rainy Night Study Session*, *Cozy Corner Cafe*, *Morning Dew Drops*
+- **Classical**: *Starlight Odyssey*, *The Ragtime Classic*, *Baroque Little Fugue*
+- **Electronic**: *Cybernetic Pulse*, *Electric Dreams*, *Deep Space Nebula*, *8-Bit Pixel Arena*
+
+All audio tracks are stored locally in `frontend/public/audio/` and `backend/public/audio/`, providing instant playback without network delays or external dependency timeouts.
+
+---
+
 ## 📦 Project Structure
 
 ```
@@ -78,21 +93,26 @@ PlayX/
 ├── .env.example               # Environment variables template
 ├── README.md                  # Project documentation
 ├── database/
-│   └── schema.sql             # PostgreSQL Database Schema definition
-├── backend/
-│   ├── package.json           # Express server dependencies
-│   ├── tsconfig.json          # Backend TypeScript configuration
-│   └── src/
-│       ├── index.ts           # Express server entry point & static file hosting
-│       ├── config/            # Environment configurations
-│       ├── db/                # PostgreSQL connection pool & migration runner
-│       ├── middleware/        # JWT Authentication & error handling
-│       ├── routes/            # API Endpoints (auth, songs, artists, albums, playlists, etc.)
-│       └── seed/              # Database seeder with demo music tracks
-└── frontend/
+│   └── schema.sql             # MySQL Database Schema definition
+├── backend/                   # Spring Boot 3 Backend
+│   ├── pom.xml                # Maven dependencies & build configuration
+│   ├── mvnw.cmd               # Maven wrapper executable
+│   ├── public/audio/          # Bundled MP3 audio files for backend streaming
+│   └── src/main/
+│       ├── java/com/playx/
+│       │   ├── config/        # Spring MVC static resource handlers
+│       │   ├── controller/    # REST API Controllers (Songs, Artists, Playlists, etc.)
+│       │   ├── model/         # JPA Entities
+│       │   ├── repository/    # Spring Data Repositories
+│       │   ├── security/      # JWT Filter & Spring Security configuration
+│       │   └── service/       # SeedDataService with pre-loaded music catalog
+│       └── resources/
+│           └── application.properties # Server port & H2 database configuration
+└── frontend/                  # Vite + React 18 Frontend
     ├── package.json           # Vite React dependencies
     ├── vite.config.ts         # Vite server configuration & API proxy
     ├── tailwind.config.js     # Tailwind CSS theme customization
+    ├── public/audio/          # Bundled MP3 audio files for direct frontend playback
     └── src/
         ├── App.tsx            # Main layout router with persistent player
         ├── context/           # AuthContext & PlayerContext state management
@@ -107,7 +127,7 @@ PlayX/
 ### Prerequisites
 - Node.js (v18 or higher)
 - npm or yarn
-- PostgreSQL (Optional; if PostgreSQL is not running locally, PLAYX automatically switches to its fallback engine so it works immediately out of the box!)
+- MySQL 8.0+ running on `localhost:3306` (Database: `PlayX_db`)
 
 ### Installation Steps
 
@@ -141,12 +161,12 @@ PlayX/
 PLAYX is pre-configured to run on Replit:
 
 1. Import the repository into Replit.
-2. If using Replit Database (Postgres), set `DATABASE_URL` in **Secrets (Environment Variables)**.
+2. If using an external MySQL Database, set `DATABASE_URL` in **Secrets (Environment Variables)**.
 3. Click **Run**. Replit will execute `npm run dev`, launching both the Express backend API and the Vite frontend web server automatically.
 
 ---
 
-## 📜 Database Schema (PostgreSQL)
+## 📜 Database Schema (MySQL)
 
 The database includes 11 tables:
 - `subscriptions`
