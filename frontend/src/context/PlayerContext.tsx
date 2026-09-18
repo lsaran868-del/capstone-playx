@@ -2,24 +2,48 @@ import React, { createContext, useContext, useState, useRef, useEffect } from 'r
 import { Song } from '../types';
 import api from '../services/api';
 
+export type RepeatMode = 'off' | 'all' | 'one';
+
+export interface PlaybackContextInfo {
+  type: string;
+  name: string;
+}
+
 interface PlayerContextType {
   currentSong: Song | null;
   queue: Song[];
   isPlaying: boolean;
   isShuffle: boolean;
+  repeatMode: RepeatMode;
   isRepeat: boolean;
   volume: number;
   currentTime: number;
   duration: number;
-  playSong: (song: Song, newQueue?: Song[]) => void;
+  playSong: (song: Song, newQueue?: Song[], context?: PlaybackContextInfo | string) => void;
   togglePlay: () => void;
-  playNext: () => void;
+  playNext: (isAutoEnded?: boolean) => void;
   playPrevious: () => void;
   toggleShuffle: () => void;
   toggleRepeat: () => void;
   setVolume: (vol: number) => void;
   seekTo: (time: number) => void;
+  // Now Playing screen state
+  isNowPlayingOpen: boolean;
+  openNowPlaying: () => void;
+  closeNowPlaying: () => void;
+  toggleNowPlaying: () => void;
+  playbackContext: PlaybackContextInfo;
+  setPlaybackContext: (context: PlaybackContextInfo) => void;
+  // Queue operations
+  addToQueue: (song: Song) => void;
+  removeFromQueue: (index: number) => void;
+  clearQueue: () => void;
+  playQueueItem: (index: number) => void;
+  // Favorite operations
+  favoriteIds: Set<string>;
+  isFavorite: (songId: string) => boolean;
   toggleFavorite: (songId: string) => Promise<void>;
+  refreshFavorites: () => Promise<void>;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -29,28 +53,55 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [queue, setQueue] = useState<Song[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isShuffle, setIsShuffle] = useState(false);
-  const [isRepeat, setIsRepeat] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
   const [volume, setVolumeState] = useState(0.8);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false);
+  const [playbackContext, setPlaybackContext] = useState<PlaybackContextInfo>({
+    type: 'Playlist',
+    name: 'PlayX Favorites',
+  });
+
+  const openNowPlaying = () => setIsNowPlayingOpen(true);
+  const closeNowPlaying = () => setIsNowPlayingOpen(false);
+  const toggleNowPlaying = () => setIsNowPlayingOpen(prev => !prev);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentSongRef = useRef<Song | null>(null);
   const queueRef = useRef<Song[]>([]);
   const isShuffleRef = useRef(false);
-  const isRepeatRef = useRef(false);
+  const repeatModeRef = useRef<RepeatMode>('off');
   const volumeRef = useRef(0.8);
   const loadedSongIdRef = useRef<string | null>(null);
-  const playNextRef = useRef<() => void>(() => {});
+  const shuffleHistoryRef = useRef<string[]>([]);
+  const playNextRef = useRef<(isAutoEnded?: boolean) => void>(() => {});
 
-  // Keep event handlers up to date without recreating the Audio instance.
+  // Keep refs synchronized with state
   currentSongRef.current = currentSong;
   queueRef.current = queue;
   isShuffleRef.current = isShuffle;
-  isRepeatRef.current = isRepeat;
+  repeatModeRef.current = repeatMode;
   volumeRef.current = volume;
 
-  // Create exactly one HTMLAudioElement for the lifetime of the provider.
+  const refreshFavorites = async () => {
+    try {
+      const res = await api.get('/favorites');
+      if (Array.isArray(res.data)) {
+        const ids = new Set<string>(res.data.map((f: any) => f.id));
+        setFavoriteIds(ids);
+      }
+    } catch (e) {
+      // Ignore if unauthenticated or on login screen
+    }
+  };
+
+  useEffect(() => {
+    refreshFavorites();
+  }, []);
+
+  // Initialize persistent audio element
   useEffect(() => {
     const audio = new Audio();
     audioRef.current = audio;
@@ -64,24 +115,43 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     const handleEnded = () => {
-      if (isRepeatRef.current) {
+      const mode = repeatModeRef.current;
+      if (mode === 'one') {
         audio.currentTime = 0;
-        // This is the only automatic replay: the user explicitly enabled repeat.
         audio.play().catch(console.error);
       } else {
-        // Advancing after a natural end intentionally switches to the next song.
-        playNextRef.current();
+        playNextRef.current(true);
       }
     };
 
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
+    const handleError = () => {
+      const audio = audioRef.current;
+      const song = currentSongRef.current;
+      if (audio && song) {
+        const streamEndpoint = `/api/songs/${song.id}/stream`;
+        const localAudioFallback = `/audio/${song.id}.mp3`;
+        const currentSrc = audio.src || '';
+        if (!currentSrc.includes(streamEndpoint)) {
+          console.warn(`Audio playback issue for "${song.title}", loading stream endpoint.`);
+          audio.src = streamEndpoint;
+          audio.load();
+          audio.play().catch(() => {
+            audio.src = localAudioFallback;
+            audio.load();
+            audio.play().catch(console.error);
+          });
+        }
+      }
+    };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
+    audio.addEventListener('error', handleError);
 
     return () => {
       audio.pause();
@@ -92,37 +162,66 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('error', handleError);
       audioRef.current = null;
     };
   }, []);
 
-  const playSong = async (song: Song, newQueue?: Song[]) => {
+  const playSong = async (
+    song: Song,
+    newQueue?: Song[],
+    context?: PlaybackContextInfo | string
+  ) => {
     if (newQueue && newQueue.length > 0) {
       setQueue(newQueue);
     } else if (!queue.some(s => s.id === song.id)) {
       setQueue(prev => [...prev, song]);
     }
 
+    if (context) {
+      if (typeof context === 'string') {
+        setPlaybackContext({ type: 'Playlist', name: context });
+      } else {
+        setPlaybackContext(context);
+      }
+    } else if (song.album_title) {
+      setPlaybackContext({ type: 'Album', name: song.album_title });
+    } else {
+      setPlaybackContext({ type: 'Playlist', name: 'PlayX Favorites' });
+    }
+
     setCurrentSong(song);
+
+    // Track for shuffle avoidance
+    shuffleHistoryRef.current.push(song.id);
+    if (shuffleHistoryRef.current.length > 20) {
+      shuffleHistoryRef.current.shift();
+    }
 
     const audio = audioRef.current;
     if (audio) {
       if (loadedSongIdRef.current !== song.id) {
-        // Stop the previous source before replacing it, then reset progress for
-        // the intentionally selected song.
         audio.pause();
-        audio.src = song.audio_url || `/api/songs/${song.id}/stream`;
+        // Load through PLAYX internal streaming endpoint
+        const targetAudioSrc = `/api/songs/${song.id}/stream`;
+        audio.src = targetAudioSrc;
         audio.load();
         loadedSongIdRef.current = song.id;
         setCurrentTime(0);
         setDuration(song.duration || 0);
       }
       audio.volume = volumeRef.current;
-      // playSong is called only from an explicit song/next/previous selection.
-      audio.play().catch(err => console.log('Unable to play selected song:', err));
+      audio.play().catch(err => {
+        console.log('Stream playback notice, checking fallback:', err);
+        if (song.audio_url && song.audio_url.startsWith('/audio/')) {
+          audio.src = song.audio_url;
+          audio.load();
+          audio.play().catch(console.error);
+        }
+      });
     }
 
-    // Record listening history & play count
+    // Record listening history & play count in background
     try {
       await api.post(`/songs/${song.id}/play`);
     } catch (e) {
@@ -132,33 +231,50 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const togglePlay = () => {
     if (!currentSong) return;
-
     const audio = audioRef.current;
     if (!audio) return;
 
     if (!audio.paused) {
       audio.pause();
     } else {
-      // Resume is only initiated by this explicit Play click.
       audio.play().catch(console.error);
     }
   };
 
-  const playNext = () => {
+  const playNext = (isAutoEnded = false) => {
     const activeQueue = queueRef.current;
     const activeSong = currentSongRef.current;
     if (activeQueue.length === 0 || !activeSong) return;
 
-    let nextIndex = 0;
     const currentIndex = activeQueue.findIndex(s => s.id === activeSong.id);
 
-    if (isShuffleRef.current) {
-      nextIndex = Math.floor(Math.random() * activeQueue.length);
-    } else {
-      nextIndex = (currentIndex + 1) % activeQueue.length;
+    if (isShuffleRef.current && activeQueue.length > 1) {
+      // Pick random song from queue avoiding immediate repeats
+      const unplayedCandidates = activeQueue.filter(s => s.id !== activeSong.id && !shuffleHistoryRef.current.slice(-3).includes(s.id));
+      const pool = unplayedCandidates.length > 0 ? unplayedCandidates : activeQueue.filter(s => s.id !== activeSong.id);
+      const nextSong = pool[Math.floor(Math.random() * pool.length)];
+      playSong(nextSong);
+      return;
     }
 
-    playSong(activeQueue[nextIndex]);
+    // Normal sequential playback
+    const isLastSong = currentIndex === activeQueue.length - 1;
+    const mode = repeatModeRef.current;
+
+    if (isLastSong) {
+      if (mode === 'all') {
+        // Repeat playlist loops back to first
+        playSong(activeQueue[0]);
+      } else if (isAutoEnded && mode === 'off') {
+        // Stop at end if repeat is off and song ended naturally
+        setIsPlaying(false);
+      } else {
+        // User clicked next manually
+        playSong(activeQueue[0]);
+      }
+    } else {
+      playSong(activeQueue[currentIndex + 1]);
+    }
   };
 
   playNextRef.current = playNext;
@@ -168,15 +284,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const activeSong = currentSongRef.current;
     if (activeQueue.length === 0 || !activeSong) return;
 
-    let prevIndex = 0;
     const currentIndex = activeQueue.findIndex(s => s.id === activeSong.id);
-
-    if (isShuffleRef.current) {
-      prevIndex = Math.floor(Math.random() * activeQueue.length);
-    } else {
-      prevIndex = (currentIndex - 1 + activeQueue.length) % activeQueue.length;
-    }
-
+    const prevIndex = (currentIndex - 1 + activeQueue.length) % activeQueue.length;
     playSong(activeQueue[prevIndex]);
   };
 
@@ -185,7 +294,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const toggleRepeat = () => {
-    setIsRepeat(prev => !prev);
+    setRepeatMode(prev => {
+      if (prev === 'off') return 'all';
+      if (prev === 'all') return 'one';
+      return 'off';
+    });
   };
 
   const setVolume = (vol: number) => {
@@ -202,19 +315,72 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  // Queue Operations
+  const addToQueue = (song: Song) => {
+    setQueue(prev => {
+      if (prev.length === 0 && currentSong) {
+        return [currentSong, song];
+      }
+      return [...prev, song];
+    });
+  };
+
+  const removeFromQueue = (index: number) => {
+    setQueue(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const clearQueue = () => {
+    if (currentSong) {
+      setQueue([currentSong]);
+    } else {
+      setQueue([]);
+    }
+  };
+
+  const playQueueItem = (index: number) => {
+    if (queue[index]) {
+      playSong(queue[index]);
+    }
+  };
+
+  // Global Favorite Operations
+  const isFavorite = (songId: string) => favoriteIds.has(songId);
+
   const toggleFavorite = async (songId: string) => {
+    const isFav = favoriteIds.has(songId);
+
+    // Optimistic UI update
+    setFavoriteIds(prev => {
+      const next = new Set(prev);
+      if (isFav) {
+        next.delete(songId);
+      } else {
+        next.add(songId);
+      }
+      return next;
+    });
+
+    if (currentSong && currentSong.id === songId) {
+      setCurrentSong(prev => prev ? { ...prev, is_favorite: !isFav } : null);
+    }
+
     try {
-      const isFav = currentSong?.id === songId ? currentSong.is_favorite : false;
       if (isFav) {
         await api.delete(`/favorites/${songId}`);
       } else {
         await api.post(`/favorites/${songId}`);
       }
-
-      if (currentSong && currentSong.id === songId) {
-        setCurrentSong({ ...currentSong, is_favorite: !isFav });
-      }
     } catch (err) {
+      // Rollback on error
+      setFavoriteIds(prev => {
+        const next = new Set(prev);
+        if (isFav) next.add(songId);
+        else next.delete(songId);
+        return next;
+      });
+      if (currentSong && currentSong.id === songId) {
+        setCurrentSong(prev => prev ? { ...prev, is_favorite: isFav } : null);
+      }
       console.error('Failed to toggle favorite:', err);
     }
   };
@@ -225,7 +391,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       queue,
       isPlaying,
       isShuffle,
-      isRepeat,
+      repeatMode,
+      isRepeat: repeatMode !== 'off',
       volume,
       currentTime,
       duration,
@@ -237,7 +404,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toggleRepeat,
       setVolume,
       seekTo,
-      toggleFavorite
+      isNowPlayingOpen,
+      openNowPlaying,
+      closeNowPlaying,
+      toggleNowPlaying,
+      playbackContext,
+      setPlaybackContext,
+      addToQueue,
+      removeFromQueue,
+      clearQueue,
+      playQueueItem,
+      favoriteIds,
+      isFavorite,
+      toggleFavorite,
+      refreshFavorites
     }}>
       {children}
     </PlayerContext.Provider>
