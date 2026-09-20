@@ -6,12 +6,14 @@
   "scripts": {
     "setup": "npm run install:all",
     "install:all": "npm install --prefix frontend",
+    "postinstall": "npm install --prefix frontend",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "(if not defined JAVA_HOME if exist \"C:\\Program Files\\Java\\jdk-25\" (set \"JAVA_HOME=C:\\Program Files\\Java\\jdk-25\") else if exist \"C:\\Users\\DELL\\.vscode\\extensions\\redhat.java-1.55.0-win32-x64\\jre\\21.0.11-win32-x86_64\" (set \"JAVA_HOME=C:\\Users\\DELL\\.vscode\\extensions\\redhat.java-1.55.0-win32-x64\\jre\\21.0.11-win32-x86_64\")) & cd backend && mvnw.cmd spring-boot:run",
     "dev:frontend": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
   }
 }

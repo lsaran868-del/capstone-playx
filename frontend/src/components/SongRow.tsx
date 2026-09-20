@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Plus, ListPlus, Trash2 } from 'lucide-react';
 import { Song } from '../types';
 import { usePlayer } from '../context/PlayerContext';
@@ -20,6 +21,7 @@ const formatTime = (seconds: number): string => {
 };
 
 const SongRow: React.FC<SongRowProps> = ({ song, index, queue = [], showRemove, onRemove }) => {
+  const navigate = useNavigate();
   const { currentSong, isPlaying, playSong, togglePlay, toggleFavorite, isFavorite, addToQueue } = usePlayer();
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
 
@@ -70,7 +72,20 @@ const SongRow: React.FC<SongRowProps> = ({ song, index, queue = [], showRemove, 
             <h4 className={`font-semibold text-sm truncate ${isCurrent ? 'text-pink-400 font-bold' : 'text-white'}`}>
               {song.title}
             </h4>
-            <p className="text-xs text-muse-subtext truncate group-hover:text-white transition-colors">
+            <p
+              onClick={(e) => {
+                if (song.artist_id) {
+                  e.stopPropagation();
+                  navigate(`/artist/${song.artist_id}`);
+                }
+              }}
+              className={`text-xs text-muse-subtext truncate transition-colors ${
+                song.artist_id
+                  ? 'cursor-pointer hover:underline hover:text-pink-400'
+                  : 'group-hover:text-white'
+              }`}
+              title={song.artist_id ? `View ${song.artist_name || 'Artist'}` : undefined}
+            >
               {song.artist_name || 'Artist'}
             </p>
           </div>

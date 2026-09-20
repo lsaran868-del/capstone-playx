@@ -132,9 +132,11 @@ public class AdminController {
             map.put("duration", s.getDuration());
             map.put("cover_art", s.getCoverArt());
 
-            artistRepository.findById(s.getArtistId()).ifPresent(art -> {
-                map.put("artist_name", art.getName());
-            });
+            if (s.getArtistId() != null && !s.getArtistId().isBlank()) {
+                artistRepository.findById(s.getArtistId()).ifPresent(art -> {
+                    map.put("artist_name", art.getName());
+                });
+            }
 
             response.add(map);
         }
@@ -253,9 +255,11 @@ public class AdminController {
             map.put("cover_art", a.getCoverArt());
             map.put("created_at", a.getCreatedAt());
 
-            artistRepository.findById(a.getArtistId()).ifPresent(art -> {
-                map.put("artist_name", art.getName());
-            });
+            if (a.getArtistId() != null && !a.getArtistId().isBlank()) {
+                artistRepository.findById(a.getArtistId()).ifPresent(art -> {
+                    map.put("artist_name", art.getName());
+                });
+            }
 
             response.add(map);
         }
@@ -276,9 +280,11 @@ public class AdminController {
             map.put("user_id", p.getUserId());
             map.put("created_at", p.getCreatedAt());
 
-            userRepository.findById(p.getUserId()).ifPresent(u -> {
-                map.put("user_name", u.getName());
-            });
+            if (p.getUserId() != null && !p.getUserId().isBlank()) {
+                userRepository.findById(p.getUserId()).ifPresent(u -> {
+                    map.put("user_name", u.getName());
+                });
+            }
 
             long songCount = playlistSongRepository.findByPlaylistIdOrderByPositionAscAddedAtAsc(p.getId()).size();
             map.put("song_count", songCount);

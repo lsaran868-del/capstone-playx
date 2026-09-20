@@ -52,6 +52,14 @@ public class SeedDataService implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        // Ensure A.R. Rahman and other artists have their curated portraits if using generic placeholders
+        artistRepository.findById("art_arr").ifPresent(arr -> {
+            if (arr.getImage() == null || arr.getImage().contains("unsplash")) {
+                arr.setImage("/images/music_directors/arr_art.jpg");
+                artistRepository.save(arr);
+            }
+        });
+
         if (subscriptionRepository.count() > 0) {
             System.out.println("🌱 Database already seeded.");
             return;

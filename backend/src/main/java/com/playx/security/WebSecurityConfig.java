@@ -44,8 +44,8 @@ public class WebSecurityConfig {
             .headers(headers -> headers.frameOptions(Customizer.withDefaults()).disable()) // Allow H2 Console frames
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Allow static resources & H2 console
-                .requestMatchers(AntPathRequestMatcher.antMatcher("/h2-console/**"), AntPathRequestMatcher.antMatcher("/public/**"), AntPathRequestMatcher.antMatcher("/audio/**"), AntPathRequestMatcher.antMatcher("/uploads/**"), AntPathRequestMatcher.antMatcher("/uploads/covers/**"), AntPathRequestMatcher.antMatcher("/api/health")).permitAll()
+                // Allow static resources, error endpoint & H2 console
+                .requestMatchers(AntPathRequestMatcher.antMatcher("/error"), AntPathRequestMatcher.antMatcher("/h2-console/**"), AntPathRequestMatcher.antMatcher("/public/**"), AntPathRequestMatcher.antMatcher("/audio/**"), AntPathRequestMatcher.antMatcher("/uploads/**"), AntPathRequestMatcher.antMatcher("/uploads/covers/**"), AntPathRequestMatcher.antMatcher("/api/health")).permitAll()
                 // Auth paths
                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/register"), AntPathRequestMatcher.antMatcher("/api/auth/login"), AntPathRequestMatcher.antMatcher("/api/auth/social-login"), AntPathRequestMatcher.antMatcher("/api/auth/logout")).permitAll()
                 // Permissive GET routes

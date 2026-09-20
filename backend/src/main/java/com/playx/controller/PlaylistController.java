@@ -33,6 +33,9 @@ public class PlaylistController {
     private ArtistRepository artistRepository;
 
     @Autowired
+    private AlbumRepository albumRepository;
+
+    @Autowired
     private FavoriteRepository favoriteRepository;
 
     @GetMapping
@@ -64,9 +67,11 @@ public class PlaylistController {
             map.put("is_public", p.getIsPublic());
             map.put("createdAt", p.getCreatedAt());
 
-            userRepository.findById(p.getUserId()).ifPresent(user -> {
-                map.put("user_name", user.getName());
-            });
+            if (p.getUserId() != null && !p.getUserId().isBlank()) {
+                userRepository.findById(p.getUserId()).ifPresent(user -> {
+                    map.put("user_name", user.getName());
+                });
+            }
             response.add(map);
         }
 
@@ -113,10 +118,12 @@ public class PlaylistController {
         response.put("is_public", p.getIsPublic());
         response.put("createdAt", p.getCreatedAt());
 
-        userRepository.findById(p.getUserId()).ifPresent(user -> {
-            response.put("user_name", user.getName());
-            response.put("user_avatar", user.getAvatar());
-        });
+        if (p.getUserId() != null && !p.getUserId().isBlank()) {
+            userRepository.findById(p.getUserId()).ifPresent(user -> {
+                response.put("user_name", user.getName());
+                response.put("user_avatar", user.getAvatar());
+            });
+        }
 
         // Get playlist songs
         List<PlaylistSong> psList = playlistSongRepository.findByPlaylistIdOrderByPositionAscAddedAtAsc(id);
@@ -124,6 +131,7 @@ public class PlaylistController {
         final String finalUserId = currentUserId;
 
         for (PlaylistSong ps : psList) {
+            if (ps.getSongId() == null || ps.getSongId().isBlank()) continue;
             songRepository.findById(ps.getSongId()).ifPresent(s -> {
                 Map<String, Object> smap = new HashMap<>();
                 smap.put("id", s.getId());
@@ -145,10 +153,18 @@ public class PlaylistController {
                 }
 
                 // Add correct artist name and image
-                artistRepository.findById(s.getArtistId()).ifPresent(artist -> {
-                    smap.put("artist_name", artist.getName());
-                    smap.put("artist_image", artist.getImage());
-                });
+                if (s.getArtistId() != null && !s.getArtistId().isBlank()) {
+                    artistRepository.findById(s.getArtistId()).ifPresent(artist -> {
+                        smap.put("artist_name", artist.getName());
+                        smap.put("artist_image", artist.getImage());
+                    });
+                }
+
+                if (s.getAlbumId() != null && !s.getAlbumId().isBlank()) {
+                    albumRepository.findById(s.getAlbumId()).ifPresent(alb -> {
+                        smap.put("album_title", alb.getTitle());
+                    });
+                }
 
                 songsResponse.add(smap);
             });

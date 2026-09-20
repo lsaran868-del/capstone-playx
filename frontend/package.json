@@ -5,17 +5,25 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npx tsc && npx vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
     "@types/three": "^0.186.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.19",
     "axios": "^1.6.8",
     "lucide-react": "^0.378.0",
+    "postcss": "^8.4.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.23.0",
-    "three": "^0.186.0"
+    "tailwindcss": "^3.4.3",
+    "three": "^0.186.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
   },
   "devDependencies": {
     "@types/react": "^18.3.1",

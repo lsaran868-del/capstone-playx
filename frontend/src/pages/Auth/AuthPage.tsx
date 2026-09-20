@@ -116,16 +116,6 @@ const MUSIC_DIRECTORS: MusicDirectorSlide[] = [
     desc: 'Ghazals, classic cinematic melodies, and unforgettable acoustic vocal mastery.',
     accentColor: '#a855f7',
     focalPoint: 'object-[center_20%]'
-  },
-  {
-    id: 'ilaiyaraaja',
-    src: '/images/music_directors/ilaiyaraaja.jpg',
-    name: 'Ilaiyaraaja',
-    badge: 'Isaignani',
-    role: 'Maestro of Symphonic Harmony',
-    desc: 'Living legend with 7,000+ timeless cinematic orchestrations and milestones.',
-    accentColor: '#10b981',
-    focalPoint: 'object-[center_20%]'
   }
 ];
 

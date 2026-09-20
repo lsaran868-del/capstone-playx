@@ -23,11 +23,14 @@ const ArtistDetails: React.FC = () => {
 
   useEffect(() => {
     const fetchArtist = async () => {
+      if (!id) return;
+      setLoading(true);
       try {
-        const res = await api.get(`/artists/${id}`);
+        const res = await api.get(`/artists/${encodeURIComponent(id)}`);
         setArtist(res.data);
       } catch (err) {
-        console.error(err);
+        console.error('Failed to load artist details:', err);
+        setArtist(null);
       } finally {
         setLoading(false);
       }
@@ -145,7 +148,7 @@ const ArtistDetails: React.FC = () => {
         </div>
         <div className="glass-panel rounded-2xl border border-muse-border/40 p-4 divide-y divide-muse-border/20">
           {artist.songs && artist.songs.length > 0 ? (
-            artist.songs.slice(0, 5).map((song, i) => (
+            artist.songs.map((song, i) => (
               <SongRow key={song.id} song={song} index={i} queue={artist.songs} />
             ))
           ) : (

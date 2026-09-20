@@ -40,9 +40,11 @@ public class AlbumController {
             map.put("genre", a.getGenre());
             map.put("createdAt", a.getCreatedAt());
 
-            artistRepository.findById(a.getArtistId()).ifPresent(art -> {
-                map.put("artist_name", art.getName());
-            });
+            if (a.getArtistId() != null && !a.getArtistId().isBlank()) {
+                artistRepository.findById(a.getArtistId()).ifPresent(art -> {
+                    map.put("artist_name", art.getName());
+                });
+            }
             response.add(map);
         }
         return ResponseEntity.ok(response);
@@ -66,10 +68,12 @@ public class AlbumController {
         map.put("genre", a.getGenre());
         map.put("createdAt", a.getCreatedAt());
 
-        artistRepository.findById(a.getArtistId()).ifPresent(art -> {
-            map.put("artist_name", art.getName());
-            map.put("artist_image", art.getImage());
-        });
+        if (a.getArtistId() != null && !a.getArtistId().isBlank()) {
+            artistRepository.findById(a.getArtistId()).ifPresent(art -> {
+                map.put("artist_name", art.getName());
+                map.put("artist_image", art.getImage());
+            });
+        }
 
         // Add songs belonging to this album
         List<Song> allSongs = songRepository.findAll();

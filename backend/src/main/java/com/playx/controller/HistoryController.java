@@ -41,7 +41,7 @@ public class HistoryController {
         Set<String> seen = new HashSet<>();
 
         for (ListeningHistory h : history) {
-            if (!seen.contains(h.getSongId())) {
+            if (h.getSongId() != null && !seen.contains(h.getSongId())) {
                 seen.add(h.getSongId());
                 songRepository.findById(h.getSongId()).ifPresent(s -> {
                     Map<String, Object> map = new HashMap<>();
@@ -57,10 +57,12 @@ public class HistoryController {
                     map.put("cover_art", s.getCoverArt());
                     map.put("plays_count", s.getPlaysCount());
 
-                    artistRepository.findById(s.getArtistId()).ifPresent(art -> {
-                        map.put("artist_name", art.getName());
-                        map.put("artist_image", art.getImage());
-                    });
+                    if (s.getArtistId() != null && !s.getArtistId().isBlank()) {
+                        artistRepository.findById(s.getArtistId()).ifPresent(art -> {
+                            map.put("artist_name", art.getName());
+                            map.put("artist_image", art.getImage());
+                        });
+                    }
 
                     response.add(map);
                 });

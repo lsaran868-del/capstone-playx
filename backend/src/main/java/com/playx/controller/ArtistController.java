@@ -7,6 +7,7 @@ import com.playx.repository.AlbumRepository;
 import com.playx.repository.ArtistRepository;
 import com.playx.repository.FavoriteRepository;
 import com.playx.repository.SongRepository;
+import com.playx.repository.GenreRepository;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,9 @@ public class ArtistController {
     private AlbumRepository albumRepository;
 
     @Autowired
+    private GenreRepository genreRepository;
+
+    @Autowired
     private FavoriteRepository favoriteRepository;
 
     @GetMapping
@@ -44,12 +48,76 @@ public class ArtistController {
     public ResponseEntity<?> getArtistDetails(@PathVariable String id) {
         Optional<Artist> artistOpt = artistRepository.findById(id);
         if (artistOpt.isEmpty()) {
+            // 1. Try normalized name or direct name match
+            String normalized = id.replace("-", " ").replace("_", " ").trim();
+            List<Artist> byName = artistRepository.findByNameContainingIgnoreCase(normalized);
+            if (!byName.isEmpty()) {
+                artistOpt = Optional.of(byName.get(0));
+            } else {
+                List<Artist> byRaw = artistRepository.findByNameContainingIgnoreCase(id);
+                if (!byRaw.isEmpty()) {
+                    artistOpt = Optional.of(byRaw.get(0));
+                }
+            }
+
+            // 2. Try normalized alphanumeric matching and fuzzy typo tolerance
+            if (artistOpt.isEmpty()) {
+                List<Artist> all = artistRepository.findAll();
+                String cleanQuery = id.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+
+                // Exact alphanumeric or containment match
+                for (Artist a : all) {
+                    String cleanName = a.getName().replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+                    if (cleanName.equals(cleanQuery) || cleanName.contains(cleanQuery) || cleanQuery.contains(cleanName)) {
+                        artistOpt = Optional.of(a);
+                        break;
+                    }
+                }
+
+                // Token matching (e.g., words like "rahman")
+                if (artistOpt.isEmpty()) {
+                    String[] tokens = id.toLowerCase().split("[^a-zA-Z0-9]+");
+                    for (String t : tokens) {
+                        if (t.length() >= 3) {
+                            for (Artist a : all) {
+                                String cleanName = a.getName().toLowerCase();
+                                if (cleanName.contains(t)) {
+                                    artistOpt = Optional.of(a);
+                                    break;
+                                }
+                            }
+                        }
+                        if (artistOpt.isPresent()) break;
+                    }
+                }
+
+                // Typo / phonetic tolerance (e.g. "ranuman" -> "rahman")
+                if (artistOpt.isEmpty() && cleanQuery.length() >= 4) {
+                    int bestDist = Integer.MAX_VALUE;
+                    Artist bestMatch = null;
+                    for (Artist a : all) {
+                        String cleanName = a.getName().replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+                        int dist = computeLevenshtein(cleanQuery, cleanName);
+                        if (dist < bestDist && (dist <= 3 || dist <= cleanQuery.length() / 2)) {
+                            bestDist = dist;
+                            bestMatch = a;
+                        }
+                    }
+                    if (bestMatch != null) {
+                        artistOpt = Optional.of(bestMatch);
+                    }
+                }
+            }
+        }
+
+        if (artistOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Artist not found"));
         }
 
         Artist artist = artistOpt.get();
-        List<Song> songs = songRepository.findByArtistId(id);
-        List<Album> albums = albumRepository.findByArtistId(id);
+        String artistId = artist.getId();
+        List<Song> songs = songRepository.findByArtistId(artistId);
+        List<Album> albums = albumRepository.findByArtistId(artistId);
 
         var auth = SecurityContextHolder.getContext().getAuthentication();
         String currentUserId = null;
@@ -72,6 +140,8 @@ public class ArtistController {
             smap.put("cover_art", s.getCoverArt());
             smap.put("plays_count", s.getPlaysCount());
             smap.put("release_date", s.getReleaseDate());
+            smap.put("file_path", s.getFilePath());
+            smap.put("lyrics", s.getLyrics());
 
             if (currentUserId != null) {
                 smap.put("is_favorite", favoriteRepository.existsByUserIdAndSongId(currentUserId, s.getId()));
@@ -79,9 +149,18 @@ public class ArtistController {
                 smap.put("is_favorite", false);
             }
 
-            albumRepository.findById(s.getAlbumId()).ifPresent(alb -> {
-                smap.put("album_title", alb.getTitle());
-            });
+            if (s.getAlbumId() != null && !s.getAlbumId().isBlank()) {
+                albumRepository.findById(s.getAlbumId()).ifPresent(alb -> {
+                    smap.put("album_title", alb.getTitle());
+                    smap.put("album_cover", alb.getCoverArt());
+                });
+            }
+
+            if (s.getGenreId() != null && !s.getGenreId().isBlank()) {
+                genreRepository.findById(s.getGenreId()).ifPresent(gnr -> {
+                    smap.put("genre_name", gnr.getName());
+                });
+            }
 
             enrichedSongs.add(smap);
         }
@@ -251,5 +330,20 @@ public class ArtistController {
         albumRepository.save(newAlbum);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Album created successfully", "album", newAlbum));
+    }
+
+    private int computeLevenshtein(String s1, String s2) {
+        int[] prev = new int[s2.length() + 1];
+        int[] curr = new int[s2.length() + 1];
+        for (int j = 0; j <= s2.length(); j++) prev[j] = j;
+        for (int i = 1; i <= s1.length(); i++) {
+            curr[0] = i;
+            for (int j = 1; j <= s2.length(); j++) {
+                int cost = s1.charAt(i - 1) == s2.charAt(j - 1) ? 0 : 1;
+                curr[j] = Math.min(Math.min(curr[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
+            }
+            System.arraycopy(curr, 0, prev, 0, prev.length);
+        }
+        return prev[s2.length()];
     }
 }

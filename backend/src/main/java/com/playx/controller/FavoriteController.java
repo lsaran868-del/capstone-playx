@@ -41,28 +41,32 @@ public class FavoriteController {
         List<Map<String, Object>> response = new ArrayList<>();
 
         for (Favorite f : favorites) {
-            songRepository.findById(f.getSongId()).ifPresent(s -> {
-                Map<String, Object> map = new HashMap<>();
-                map.put("favorite_id", f.getId());
-                map.put("favorited_at", f.getCreatedAt());
-                map.put("id", s.getId());
-                map.put("title", s.getTitle());
-                map.put("artist_id", s.getArtistId());
-                map.put("album_id", s.getAlbumId());
-                map.put("genre_id", s.getGenreId());
-                map.put("audio_url", s.getAudioUrl());
-                map.put("duration", s.getDuration());
-                map.put("cover_art", s.getCoverArt());
-                map.put("cover_image", s.getCoverArt());
-                map.put("plays_count", s.getPlaysCount());
-                map.put("is_favorite", true);
+            if (f.getSongId() != null && !f.getSongId().isBlank()) {
+                songRepository.findById(f.getSongId()).ifPresent(s -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("favorite_id", f.getId());
+                    map.put("favorited_at", f.getCreatedAt());
+                    map.put("id", s.getId());
+                    map.put("title", s.getTitle());
+                    map.put("artist_id", s.getArtistId());
+                    map.put("album_id", s.getAlbumId());
+                    map.put("genre_id", s.getGenreId());
+                    map.put("audio_url", s.getAudioUrl());
+                    map.put("duration", s.getDuration());
+                    map.put("cover_art", s.getCoverArt());
+                    map.put("cover_image", s.getCoverArt());
+                    map.put("plays_count", s.getPlaysCount());
+                    map.put("is_favorite", true);
 
-                artistRepository.findById(s.getArtistId()).ifPresent(art -> {
-                    map.put("artist_name", art.getName());
+                    if (s.getArtistId() != null && !s.getArtistId().isBlank()) {
+                        artistRepository.findById(s.getArtistId()).ifPresent(art -> {
+                            map.put("artist_name", art.getName());
+                        });
+                    }
+
+                    response.add(map);
                 });
-
-                response.add(map);
-            });
+            }
         }
 
         return ResponseEntity.ok(response);
