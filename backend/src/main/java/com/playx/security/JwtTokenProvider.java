@@ -18,8 +18,34 @@ public class JwtTokenProvider {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.expiration}")
-    private long jwtExpiration;
+    @Value("${jwt.expiration:604800000}")
+    private String jwtExpirationStr;
+
+    private long getExpirationMillis() {
+        try {
+            if (jwtExpirationStr == null || jwtExpirationStr.isBlank()) {
+                return 604800000L; // 7 days
+            }
+            String clean = jwtExpirationStr.trim().toLowerCase();
+            if (clean.endsWith("d")) {
+                long days = Long.parseLong(clean.substring(0, clean.length() - 1));
+                return days * 24 * 60 * 60 * 1000L;
+            } else if (clean.endsWith("h")) {
+                long hours = Long.parseLong(clean.substring(0, clean.length() - 1));
+                return hours * 60 * 60 * 1000L;
+            } else if (clean.endsWith("m")) {
+                long minutes = Long.parseLong(clean.substring(0, clean.length() - 1));
+                return minutes * 60 * 1000L;
+            } else if (clean.endsWith("s")) {
+                long seconds = Long.parseLong(clean.substring(0, clean.length() - 1));
+                return seconds * 1000L;
+            } else {
+                return Long.parseLong(clean);
+            }
+        } catch (Exception e) {
+            return 604800000L;
+        }
+    }
 
     private Key getSigningKey() {
         byte[] keyBytes = secret.getBytes();
@@ -43,7 +69,7 @@ public class JwtTokenProvider {
                 .setClaims(claims)
                 .setSubject(userId)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .setExpiration(new Date(System.currentTimeMillis() + getExpirationMillis()))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }

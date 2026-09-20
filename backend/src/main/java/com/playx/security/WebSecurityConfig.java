@@ -94,8 +94,11 @@ public class WebSecurityConfig {
         allowedOriginsSet.add("http://127.0.0.1:5173");
         allowedOriginsSet.add("http://127.0.0.1:3000");
 
-        // 2. Vercel production domain
+        // 2. Vercel production domains
         allowedOriginsSet.add("https://playx-music-streaming-git-master-boct.vercel.app");
+        allowedOriginsSet.add("https://playx-music-streaming-beta.vercel.app");
+        allowedOriginsSet.add("https://playx-music-streaming-git-main-boct.vercel.app");
+        allowedOriginsSet.add("https://playx-music-streaming-pizgzm2p1-boct.vercel.app");
 
         // 3. Dynamic origins from FRONTEND_URL / CORS_ALLOWED_ORIGINS
         if (configuredOrigins != null && !configuredOrigins.trim().isEmpty()) {
@@ -110,7 +113,13 @@ public class WebSecurityConfig {
             }
         }
 
+        // Support explicit origins as well as *.vercel.app patterns with credentials
         configuration.setAllowedOrigins(new ArrayList<>(allowedOriginsSet));
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+                "https://*.vercel.app",
+                "http://localhost:*",
+                "http://127.0.0.1:*"
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Range", "Accept", "Origin", "X-Requested-With"));
         configuration.setExposedHeaders(Arrays.asList("Content-Range", "Accept-Ranges", "Content-Length"));

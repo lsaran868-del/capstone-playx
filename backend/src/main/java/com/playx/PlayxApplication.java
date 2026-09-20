@@ -72,14 +72,17 @@ public class PlayxApplication {
 
     /**
      * Normalizes cloud-native database connection URLs (e.g. mysql://... or postgresql://...)
-     * provided by Render, Railway, or cloud database addons into valid JDBC URLs,
+     * provided by Railway, Render, or cloud database addons into valid JDBC URLs,
      * and dynamically sets the corresponding Hibernate dialect and JDBC driver.
      */
     private static void configureDatabaseProperties() {
         String dbUrl = getFirstEnvOrProp(
             "SPRING_DATASOURCE_URL",
             "DATABASE_URL",
+            "MYSQL_PRIVATE_URL",
+            "MYSQLPRIVATEURL",
             "MYSQL_URL",
+            "MYSQLURL",
             "JAWSDB_URL",
             "CLEARDB_DATABASE_URL",
             "POSTGRES_URL",
@@ -93,7 +96,7 @@ public class PlayxApplication {
             }
 
             boolean isPostgres = dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://") || dbUrl.startsWith("jdbc:postgresql:");
-            boolean isMysql = dbUrl.startsWith("mysql://") || dbUrl.startsWith("jdbc:mysql:");
+            boolean isMysql = dbUrl.startsWith("mysql://") || dbUrl.startsWith("mysql2://") || dbUrl.startsWith("jdbc:mysql:");
 
             if (isPostgres) {
                 System.setProperty("spring.datasource.driver-class-name", "org.postgresql.Driver");
@@ -107,13 +110,14 @@ public class PlayxApplication {
 
             if (dbUrl.startsWith("jdbc:")) {
                 System.setProperty("spring.datasource.url", dbUrl);
+                System.out.println("📦 JDBC URL configured directly: " + sanitizeUrlForLogging(dbUrl));
                 return;
             }
 
-            if (dbUrl.startsWith("mysql://") || dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://")) {
+            if (dbUrl.startsWith("mysql://") || dbUrl.startsWith("mysql2://") || dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://")) {
                 try {
                     int schemeEnd = dbUrl.indexOf("://");
-                    String scheme = dbUrl.substring(0, schemeEnd).equals("mysql") ? "mysql" : "postgresql";
+                    String scheme = dbUrl.startsWith("postgres") ? "postgresql" : "mysql";
                     String rest = dbUrl.substring(schemeEnd + 3);
 
                     String userInfo = null;
@@ -129,38 +133,78 @@ public class PlayxApplication {
                         int colonIndex = userInfo.indexOf(':');
                         String user = userInfo.substring(0, colonIndex);
                         String pass = userInfo.substring(colonIndex + 1);
-                        if (System.getProperty("spring.datasource.username") == null && System.getenv("SPRING_DATASOURCE_USERNAME") == null) {
-                            System.setProperty("spring.datasource.username", user);
+                        try {
+                            user = java.net.URLDecoder.decode(user, StandardCharsets.UTF_8);
+                            pass = java.net.URLDecoder.decode(pass, StandardCharsets.UTF_8);
+                        } catch (Exception ignored) {
                         }
-                        if (System.getProperty("spring.datasource.password") == null && System.getenv("SPRING_DATASOURCE_PASSWORD") == null) {
-                            System.setProperty("spring.datasource.password", pass);
-                        }
+                        System.setProperty("spring.datasource.username", user);
+                        System.setProperty("spring.datasource.password", pass);
                     }
 
                     StringBuilder jdbcUrl = new StringBuilder("jdbc:").append(scheme).append("://").append(hostPortPathQuery);
-                    if (scheme.equals("mysql") && !hostPortPathQuery.contains("?")) {
-                        jdbcUrl.append("?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true");
+                    if (scheme.equals("mysql")) {
+                        boolean hasQuery = hostPortPathQuery.contains("?");
+                        char sep = hasQuery ? '&' : '?';
+                        if (!hostPortPathQuery.contains("useSSL")) {
+                            jdbcUrl.append(sep).append("useSSL=false");
+                            sep = '&';
+                        }
+                        if (!hostPortPathQuery.contains("serverTimezone")) {
+                            jdbcUrl.append(sep).append("serverTimezone=UTC");
+                            sep = '&';
+                        }
+                        if (!hostPortPathQuery.contains("allowPublicKeyRetrieval")) {
+                            jdbcUrl.append(sep).append("allowPublicKeyRetrieval=true");
+                        }
                     } else if (scheme.equals("postgresql") && !hostPortPathQuery.contains("?")) {
                         jdbcUrl.append("?sslmode=prefer");
                     }
 
-                    System.setProperty("spring.datasource.url", jdbcUrl.toString());
+                    String finalJdbcUrl = jdbcUrl.toString();
+                    System.setProperty("spring.datasource.url", finalJdbcUrl);
+                    System.out.println("📦 Railway/Cloud database converted to JDBC: " + sanitizeUrlForLogging(finalJdbcUrl));
+                    return;
                 } catch (Exception e) {
                     System.err.println("⚠️ Could not parse database URL: " + e.getMessage());
                 }
             }
         }
 
-        // Cloud deployment diagnostic check: notify if running on Render/Cloud without external database
+        // Fallback: Check Railway direct environment variables (e.g. MYSQLHOST, MYSQLPORT)
+        String mysqlHost = getFirstEnvOrProp("MYSQL_HOST", "MYSQLHOST");
+        if (mysqlHost != null && !mysqlHost.isBlank() && !mysqlHost.equalsIgnoreCase("localhost")) {
+            String port = getFirstEnvOrProp("MYSQL_PORT", "MYSQLPORT", "3306");
+            String db = getFirstEnvOrProp("MYSQL_DATABASE", "MYSQLDATABASE", "railway");
+            String user = getFirstEnvOrProp("MYSQL_USER", "MYSQLUSER", "root");
+            String pass = getFirstEnvOrProp("MYSQL_PASSWORD", "MYSQLPASSWORD", "");
+
+            String jdbcUrl = "jdbc:mysql://" + mysqlHost + ":" + port + "/" + db + "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
+            System.setProperty("spring.datasource.url", jdbcUrl);
+            System.setProperty("spring.datasource.username", user);
+            System.setProperty("spring.datasource.password", pass);
+            System.setProperty("spring.datasource.driver-class-name", "com.mysql.cj.jdbc.Driver");
+            System.setProperty("spring.jpa.database-platform", "org.hibernate.dialect.MySQLDialect");
+            System.setProperty("spring.jpa.properties.hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+            System.out.println("📦 Railway direct MySQL host configured: " + sanitizeUrlForLogging(jdbcUrl));
+            return;
+        }
+
+        // Cloud deployment diagnostic check: notify if running on Railway/Cloud without external database
         String configuredUrl = System.getProperty("spring.datasource.url", "");
-        if (configuredUrl.isEmpty() && (System.getenv("RENDER") != null || System.getenv("PORT") != null)) {
-            String hostEnv = System.getenv("MYSQL_HOST");
+        if (configuredUrl.isEmpty() && (System.getenv("RAILWAY_ENVIRONMENT") != null || System.getenv("RENDER") != null || System.getenv("PORT") != null)) {
+            String hostEnv = getFirstEnvOrProp("MYSQL_HOST", "MYSQLHOST");
             if (hostEnv == null || hostEnv.equalsIgnoreCase("localhost")) {
                 System.err.println("\n⚠️ [DEPLOYMENT NOTICE]: No cloud database environment variable detected.");
-                System.err.println("   The application is running in a cloud container (Render/Railway) but falling back to localhost:3306.");
-                System.err.println("   Please set DATABASE_URL (or MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD) in your cloud dashboard Environment settings.\n");
+                System.err.println("   The application is running in a cloud container (Railway/Render) but falling back to localhost:3306.");
+                System.err.println("   Please set DATABASE_URL (e.g. ${{ MySQL.MYSQL_PRIVATE_URL }}) in your Railway Environment variables.\n");
             }
         }
+    }
+
+    private static String sanitizeUrlForLogging(String url) {
+        if (url == null) return "null";
+        return url.replaceAll(":[^/@:]+@", ":****@");
     }
 
     private static String getFirstEnvOrProp(String... keys) {

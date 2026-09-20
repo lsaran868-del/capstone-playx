@@ -1,13 +1,22 @@
 package com.playx.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
+
+    @Value("${music.storage.path:uploads/music}")
+    private String musicStoragePath;
+
+    @Value("${music.covers.path:uploads/covers}")
+    private String musicCoversPath;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -27,6 +36,27 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "classpath:/static/audio/"
                 );
 
+        List<String> uploadLocations = new ArrayList<>();
+
+        // Add dynamically configured storage locations (supports Railway Volumes)
+        try {
+            File configuredMusic = new File(musicStoragePath).getAbsoluteFile();
+            File configuredMusicParent = configuredMusic.getParentFile();
+            if (configuredMusicParent != null) {
+                uploadLocations.add("file:" + configuredMusicParent.getAbsolutePath().replace("\\", "/") + "/");
+            }
+            uploadLocations.add("file:" + configuredMusic.getAbsolutePath().replace("\\", "/") + "/");
+
+            File configuredCovers = new File(musicCoversPath).getAbsoluteFile();
+            File configuredCoversParent = configuredCovers.getParentFile();
+            if (configuredCoversParent != null) {
+                uploadLocations.add("file:" + configuredCoversParent.getAbsolutePath().replace("\\", "/") + "/");
+            }
+            uploadLocations.add("file:" + configuredCovers.getAbsolutePath().replace("\\", "/") + "/");
+        } catch (Exception ignored) {
+        }
+
+        // Standard relative locations
         File backendUploadsDir = new File("backend/public/uploads");
         File rootUploadsDir = new File("public/uploads");
         File parentBackendUploadsDir = new File("../backend/public/uploads");
@@ -34,15 +64,15 @@ public class WebMvcConfig implements WebMvcConfigurer {
         File parentLocalUploadsDir = new File("../uploads");
         File backendLocalUploadsDir = new File("backend/uploads");
 
+        uploadLocations.add("file:" + localUploadsDir.getAbsolutePath().replace("\\", "/") + "/");
+        uploadLocations.add("file:" + parentLocalUploadsDir.getAbsolutePath().replace("\\", "/") + "/");
+        uploadLocations.add("file:" + backendLocalUploadsDir.getAbsolutePath().replace("\\", "/") + "/");
+        uploadLocations.add("file:" + backendUploadsDir.getAbsolutePath().replace("\\", "/") + "/");
+        uploadLocations.add("file:" + rootUploadsDir.getAbsolutePath().replace("\\", "/") + "/");
+        uploadLocations.add("file:" + parentBackendUploadsDir.getAbsolutePath().replace("\\", "/") + "/");
+        uploadLocations.add("classpath:/static/uploads/");
+
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations(
-                        "file:" + localUploadsDir.getAbsolutePath().replace("\\", "/") + "/",
-                        "file:" + parentLocalUploadsDir.getAbsolutePath().replace("\\", "/") + "/",
-                        "file:" + backendLocalUploadsDir.getAbsolutePath().replace("\\", "/") + "/",
-                        "file:" + backendUploadsDir.getAbsolutePath().replace("\\", "/") + "/",
-                        "file:" + rootUploadsDir.getAbsolutePath().replace("\\", "/") + "/",
-                        "file:" + parentBackendUploadsDir.getAbsolutePath().replace("\\", "/") + "/",
-                        "classpath:/static/uploads/"
-                );
+                .addResourceLocations(uploadLocations.toArray(new String[0]));
     }
 }

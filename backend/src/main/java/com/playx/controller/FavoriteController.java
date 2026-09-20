@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/favorites")
+@RequestMapping({"/api/favorites", "/api/likes"})
 public class FavoriteController {
 
     @Autowired

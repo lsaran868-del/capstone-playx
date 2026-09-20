@@ -62,6 +62,8 @@ if not "%JAVA_HOME%" == "" if not exist "%JAVA_HOME%\bin\java.exe" (
     set "JAVA_HOME="
 )
 
+if "%JAVA_HOME%" == "" if exist "C:\Users\DELL\.antigravity-ide\extensions\redhat.java-1.56.0-win32-x64\jre\21.0.12.1-win32-x86_64\bin\java.exe" set "JAVA_HOME=C:\Users\DELL\.antigravity-ide\extensions\redhat.java-1.56.0-win32-x64\jre\21.0.12.1-win32-x86_64"
+if "%JAVA_HOME%" == "" if exist "C:\Users\DELL\.vscode\extensions\redhat.java-1.56.0-win32-x64\jre\21.0.12.1-win32-x86_64\bin\java.exe" set "JAVA_HOME=C:\Users\DELL\.vscode\extensions\redhat.java-1.56.0-win32-x64\jre\21.0.12.1-win32-x86_64"
 if "%JAVA_HOME%" == "" if exist "C:\Program Files\Java\jdk-25\bin\java.exe" set "JAVA_HOME=C:\Program Files\Java\jdk-25"
 if "%JAVA_HOME%" == "" if exist "C:\Program Files\Java\jdk-21\bin\java.exe" set "JAVA_HOME=C:\Program Files\Java\jdk-21"
 if "%JAVA_HOME%" == "" if exist "C:\Program Files\Java\jdk-17\bin\java.exe" set "JAVA_HOME=C:\Program Files\Java\jdk-17"
