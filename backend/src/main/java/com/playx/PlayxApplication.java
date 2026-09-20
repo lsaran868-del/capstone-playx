@@ -72,58 +72,104 @@ public class PlayxApplication {
 
     /**
      * Normalizes cloud-native database connection URLs (e.g. mysql://... or postgresql://...)
-     * provided by Render or cloud database addons into valid JDBC URLs.
+     * provided by Render, Railway, or cloud database addons into valid JDBC URLs,
+     * and dynamically sets the corresponding Hibernate dialect and JDBC driver.
      */
     private static void configureDatabaseProperties() {
-        String dbUrl = System.getenv("SPRING_DATASOURCE_URL");
-        if (dbUrl == null || dbUrl.isBlank()) {
-            dbUrl = System.getenv("DATABASE_URL");
-        }
-        if (dbUrl == null || dbUrl.isBlank()) {
-            dbUrl = System.getenv("MYSQL_URL");
-        }
-        if (dbUrl == null || dbUrl.isBlank()) {
-            dbUrl = System.getProperty("DATABASE_URL");
-        }
+        String dbUrl = getFirstEnvOrProp(
+            "SPRING_DATASOURCE_URL",
+            "DATABASE_URL",
+            "MYSQL_URL",
+            "JAWSDB_URL",
+            "CLEARDB_DATABASE_URL",
+            "POSTGRES_URL",
+            "DB_URL"
+        );
 
         if (dbUrl != null && !dbUrl.isBlank()) {
+            dbUrl = dbUrl.trim();
+            if ((dbUrl.startsWith("\"") && dbUrl.endsWith("\"")) || (dbUrl.startsWith("'") && dbUrl.endsWith("'"))) {
+                dbUrl = dbUrl.substring(1, dbUrl.length() - 1);
+            }
+
+            boolean isPostgres = dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://") || dbUrl.startsWith("jdbc:postgresql:");
+            boolean isMysql = dbUrl.startsWith("mysql://") || dbUrl.startsWith("jdbc:mysql:");
+
+            if (isPostgres) {
+                System.setProperty("spring.datasource.driver-class-name", "org.postgresql.Driver");
+                System.setProperty("spring.jpa.database-platform", "org.hibernate.dialect.PostgreSQLDialect");
+                System.setProperty("spring.jpa.properties.hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
+            } else if (isMysql) {
+                System.setProperty("spring.datasource.driver-class-name", "com.mysql.cj.jdbc.Driver");
+                System.setProperty("spring.jpa.database-platform", "org.hibernate.dialect.MySQLDialect");
+                System.setProperty("spring.jpa.properties.hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+            }
+
+            if (dbUrl.startsWith("jdbc:")) {
+                System.setProperty("spring.datasource.url", dbUrl);
+                return;
+            }
+
             if (dbUrl.startsWith("mysql://") || dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://")) {
                 try {
-                    String cleanUrl = dbUrl.replace("postgres://", "postgresql://");
-                    URI uri = new URI(cleanUrl);
-                    String scheme = uri.getScheme().equals("mysql") ? "mysql" : "postgresql";
-                    String host = uri.getHost();
-                    int port = uri.getPort();
-                    String path = uri.getPath();
-                    String query = uri.getQuery();
+                    int schemeEnd = dbUrl.indexOf("://");
+                    String scheme = dbUrl.substring(0, schemeEnd).equals("mysql") ? "mysql" : "postgresql";
+                    String rest = dbUrl.substring(schemeEnd + 3);
 
-                    StringBuilder jdbcUrl = new StringBuilder("jdbc:").append(scheme).append("://").append(host);
-                    if (port > 0) {
-                        jdbcUrl.append(":").append(port);
-                    }
-                    if (path != null) {
-                        jdbcUrl.append(path);
-                    }
-                    if (query != null && !query.isBlank()) {
-                        jdbcUrl.append("?").append(query);
-                    } else if (scheme.equals("mysql")) {
-                        jdbcUrl.append("?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true");
-                    }
-                    System.setProperty("spring.datasource.url", jdbcUrl.toString());
+                    String userInfo = null;
+                    String hostPortPathQuery = rest;
 
-                    String userInfo = uri.getUserInfo();
+                    int atIndex = rest.lastIndexOf('@');
+                    if (atIndex != -1) {
+                        userInfo = rest.substring(0, atIndex);
+                        hostPortPathQuery = rest.substring(atIndex + 1);
+                    }
+
                     if (userInfo != null && userInfo.contains(":")) {
-                        String[] parts = userInfo.split(":", 2);
+                        int colonIndex = userInfo.indexOf(':');
+                        String user = userInfo.substring(0, colonIndex);
+                        String pass = userInfo.substring(colonIndex + 1);
                         if (System.getProperty("spring.datasource.username") == null && System.getenv("SPRING_DATASOURCE_USERNAME") == null) {
-                            System.setProperty("spring.datasource.username", parts[0]);
+                            System.setProperty("spring.datasource.username", user);
                         }
                         if (System.getProperty("spring.datasource.password") == null && System.getenv("SPRING_DATASOURCE_PASSWORD") == null) {
-                            System.setProperty("spring.datasource.password", parts[1]);
+                            System.setProperty("spring.datasource.password", pass);
                         }
                     }
-                } catch (Exception ignored) {
+
+                    StringBuilder jdbcUrl = new StringBuilder("jdbc:").append(scheme).append("://").append(hostPortPathQuery);
+                    if (scheme.equals("mysql") && !hostPortPathQuery.contains("?")) {
+                        jdbcUrl.append("?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true");
+                    } else if (scheme.equals("postgresql") && !hostPortPathQuery.contains("?")) {
+                        jdbcUrl.append("?sslmode=prefer");
+                    }
+
+                    System.setProperty("spring.datasource.url", jdbcUrl.toString());
+                } catch (Exception e) {
+                    System.err.println("⚠️ Could not parse database URL: " + e.getMessage());
                 }
             }
         }
+
+        // Cloud deployment diagnostic check: notify if running on Render/Cloud without external database
+        String configuredUrl = System.getProperty("spring.datasource.url", "");
+        if (configuredUrl.isEmpty() && (System.getenv("RENDER") != null || System.getenv("PORT") != null)) {
+            String hostEnv = System.getenv("MYSQL_HOST");
+            if (hostEnv == null || hostEnv.equalsIgnoreCase("localhost")) {
+                System.err.println("\n⚠️ [DEPLOYMENT NOTICE]: No cloud database environment variable detected.");
+                System.err.println("   The application is running in a cloud container (Render/Railway) but falling back to localhost:3306.");
+                System.err.println("   Please set DATABASE_URL (or MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD) in your cloud dashboard Environment settings.\n");
+            }
+        }
+    }
+
+    private static String getFirstEnvOrProp(String... keys) {
+        for (String key : keys) {
+            String val = System.getenv(key);
+            if (val != null && !val.isBlank()) return val;
+            val = System.getProperty(key);
+            if (val != null && !val.isBlank()) return val;
+        }
+        return null;
     }
 }
