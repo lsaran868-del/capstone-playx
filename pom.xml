@@ -12,4 +12,10 @@
     <modules>
         <module>backend</module>
     </modules>
+
+    <profiles>
+        <profile>
+            <id>production</id>
+        </profile>
+    </profiles>
 </project>

@@ -116,22 +116,48 @@ if $mingw ; then
     JAVA_HOME="`(cd "$JAVA_HOME"; pwd)`"
 fi
 
+# If JAVA_HOME is set but invalid (i.e. $JAVA_HOME/bin/java is not executable),
+# unset it so we can discover the valid Java installation from PATH.
+if [ -n "$JAVA_HOME" ] && [ ! -x "$JAVA_HOME/bin/java" ] && [ ! -x "$JAVA_HOME/jre/sh/java" ]; then
+  unset JAVA_HOME
+fi
+
 if [ -z "$JAVA_HOME" ]; then
-  javaExecutable="`which javac`"
+  # Check if java is directly available in PATH
+  javaCmd="`which java 2>/dev/null || command -v java 2>/dev/null`"
+  if [ -n "$javaCmd" ] && [ -x "$javaCmd" ]; then
+    JAVACMD="$javaCmd"
+    if command -v readlink >/dev/null 2>&1; then
+      realJava="`readlink -f \"$javaCmd\" 2>/dev/null || echo \"$javaCmd\"`"
+    else
+      realJava="$javaCmd"
+    fi
+    javaHome="`dirname \"$realJava\"`"
+    javaHome="`expr \"$javaHome\" : '\(.*\)/bin'`"
+    if [ -n "$javaHome" ] && [ -d "$javaHome" ]; then
+      JAVA_HOME="$javaHome"
+      export JAVA_HOME
+    fi
+  fi
+fi
+
+if [ -z "$JAVA_HOME" ]; then
+  javaExecutable="`which javac 2>/dev/null || command -v javac 2>/dev/null`"
   if [ -n "$javaExecutable" ] && ! [ "`expr \"$javaExecutable\" : '\([^ ]*\)'`" = "no" ]; then
-    # readlink(1) is not available as standard on Solaris 10.
-    readLink=`which readlink`
+    readLink=`which readlink 2>/dev/null`
     if [ ! `expr "$readLink" : '\([^ ]*\)'` = "no" ]; then
       if $darwin ; then
         javaHome="`dirname \"$javaExecutable\"`"
         javaExecutable="`cd \"$javaHome\" && pwd -P`/javac"
       else
-        javaExecutable="`readlink -f \"$javaExecutable\"`"
+        javaExecutable="`readlink -f \"$javaExecutable\" 2>/dev/null || echo \"$javaExecutable\"`"
       fi
       javaHome="`dirname \"$javaExecutable\"`"
       javaHome=`expr "$javaHome" : '\(.*\)/bin'`
-      JAVA_HOME="$javaHome"
-      export JAVA_HOME
+      if [ -n "$javaHome" ] && [ -d "$javaHome" ] && [ -x "$javaHome/bin/java" ]; then
+        JAVA_HOME="$javaHome"
+        export JAVA_HOME
+      fi
     fi
   fi
 fi
@@ -139,14 +165,24 @@ fi
 if [ -z "$JAVACMD" ] ; then
   if [ -n "$JAVA_HOME"  ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
-      # IBM's JDK on AIX uses strange locations for the executables
       JAVACMD="$JAVA_HOME/jre/sh/java"
-    else
+    elif [ -x "$JAVA_HOME/bin/java" ] ; then
       JAVACMD="$JAVA_HOME/bin/java"
     fi
-  else
-    JAVACMD="`which java`"
   fi
+fi
+
+if [ -z "$JAVACMD" ] || [ ! -x "$JAVACMD" ] ; then
+  JAVACMD="`which java 2>/dev/null || command -v java 2>/dev/null`"
+fi
+
+if [ ! -x "$JAVACMD" ] ; then
+  for candidate in /usr/bin/java /usr/local/bin/java /opt/java/*/bin/java /usr/lib/jvm/*/bin/java /root/.nix-profile/bin/java /nix/var/nix/profiles/default/bin/java; do
+    if [ -x "$candidate" ]; then
+      JAVACMD="$candidate"
+      break
+    fi
+  done
 fi
 
 if [ ! -x "$JAVACMD" ] ; then

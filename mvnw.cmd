@@ -58,11 +58,22 @@ set ERROR_CODE=0
 @setlocal
 
 @REM ==== START VALIDATION ====
-if "%JAVA_HOME%" == "" if exist "C:\Users\DELL\.vscode\extensions\redhat.java-1.55.0-win32-x64\jre\21.0.11-win32-x86_64\bin\java.exe" set "JAVA_HOME=C:\Users\DELL\.vscode\extensions\redhat.java-1.55.0-win32-x64\jre\21.0.11-win32-x86_64"
+if not "%JAVA_HOME%" == "" if not exist "%JAVA_HOME%\bin\java.exe" (
+    set "JAVA_HOME="
+)
+
 if "%JAVA_HOME%" == "" if exist "C:\Program Files\Java\jdk-25\bin\java.exe" set "JAVA_HOME=C:\Program Files\Java\jdk-25"
+if "%JAVA_HOME%" == "" if exist "C:\Program Files\Java\jdk-21\bin\java.exe" set "JAVA_HOME=C:\Program Files\Java\jdk-21"
 if "%JAVA_HOME%" == "" if exist "C:\Program Files\Java\jdk-17\bin\java.exe" set "JAVA_HOME=C:\Program Files\Java\jdk-17"
+if "%JAVA_HOME%" == "" if exist "C:\Users\DELL\.vscode\extensions\redhat.java-1.55.0-win32-x64\jre\21.0.11-win32-x86_64\bin\java.exe" set "JAVA_HOME=C:\Users\DELL\.vscode\extensions\redhat.java-1.55.0-win32-x64\jre\21.0.11-win32-x86_64"
 
 if not "%JAVA_HOME%" == "" goto OkJHome
+
+@REM Fallback to java.exe found on PATH
+for %%I in (java.exe) do if exist "%%~$PATH:I" (
+    set "MAVEN_JAVA_EXE=%%~$PATH:I"
+    goto init
+)
 
 echo.
 echo Error: JAVA_HOME not found in your environment. >&2
@@ -120,7 +131,7 @@ for /F "usebackq delims=" %%a in ("%MAVEN_PROJECTBASEDIR%\.mvn\jvm.config") do s
 
 :endReadAdditionalConfig
 
-SET MAVEN_JAVA_EXE="%JAVA_HOME%\bin\java.exe"
+if "%MAVEN_JAVA_EXE%" == "" set MAVEN_JAVA_EXE="%JAVA_HOME%\bin\java.exe"
 set WRAPPER_JAR="%MAVEN_PROJECTBASEDIR%\.mvn\wrapper\maven-wrapper.jar"
 set WRAPPER_LAUNCHER=org.apache.maven.wrapper.MavenWrapperMain
 
