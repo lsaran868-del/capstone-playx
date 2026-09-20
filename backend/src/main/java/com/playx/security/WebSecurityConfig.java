@@ -18,10 +18,13 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -30,6 +33,9 @@ public class WebSecurityConfig {
 
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Value("${cors.allowed-origins:${CORS_ALLOWED_ORIGINS:*}}")
+    private String corsAllowedOrigins;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -44,8 +50,17 @@ public class WebSecurityConfig {
             .headers(headers -> headers.frameOptions(Customizer.withDefaults()).disable()) // Allow H2 Console frames
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Allow static resources, error endpoint & H2 console
-                .requestMatchers(AntPathRequestMatcher.antMatcher("/error"), AntPathRequestMatcher.antMatcher("/h2-console/**"), AntPathRequestMatcher.antMatcher("/public/**"), AntPathRequestMatcher.antMatcher("/audio/**"), AntPathRequestMatcher.antMatcher("/uploads/**"), AntPathRequestMatcher.antMatcher("/uploads/covers/**"), AntPathRequestMatcher.antMatcher("/api/health")).permitAll()
+                // Allow static resources, root status, error endpoint & H2 console
+                .requestMatchers(
+                    AntPathRequestMatcher.antMatcher("/"),
+                    AntPathRequestMatcher.antMatcher("/error"),
+                    AntPathRequestMatcher.antMatcher("/h2-console/**"),
+                    AntPathRequestMatcher.antMatcher("/public/**"),
+                    AntPathRequestMatcher.antMatcher("/audio/**"),
+                    AntPathRequestMatcher.antMatcher("/uploads/**"),
+                    AntPathRequestMatcher.antMatcher("/uploads/covers/**"),
+                    AntPathRequestMatcher.antMatcher("/api/health")
+                ).permitAll()
                 // Auth paths
                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/register"), AntPathRequestMatcher.antMatcher("/api/auth/login"), AntPathRequestMatcher.antMatcher("/api/auth/social-login"), AntPathRequestMatcher.antMatcher("/api/auth/logout")).permitAll()
                 // Permissive GET routes
@@ -73,9 +88,19 @@ public class WebSecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
+        
+        if (corsAllowedOrigins != null && !corsAllowedOrigins.trim().isEmpty() && !corsAllowedOrigins.trim().equals("*")) {
+            List<String> origins = Arrays.stream(corsAllowedOrigins.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
+            configuration.setAllowedOriginPatterns(origins);
+        } else {
+            configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
+        }
+        
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Range"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Range", "Accept", "Origin", "X-Requested-With"));
         configuration.setExposedHeaders(Arrays.asList("Content-Range", "Accept-Ranges", "Content-Length"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
