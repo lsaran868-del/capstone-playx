@@ -13,7 +13,7 @@ public class HealthController {
     @GetMapping({"/", "/api/health"})
     public ResponseEntity<?> checkHealth() {
         return ResponseEntity.ok(Map.of(
-                "status", "ok",
+                "status", "UP",
                 "service", "PLAYX Music API (Spring Boot)",
                 "time", Instant.now().toString()
         ));

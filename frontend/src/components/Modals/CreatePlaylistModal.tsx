@@ -41,9 +41,7 @@ const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({ onClose, onCr
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await api.post('/upload/image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await api.post('/upload/image', formData);
       setCoverArt(res.data.url);
     } catch (err: any) {
       console.error('Failed to upload image:', err);

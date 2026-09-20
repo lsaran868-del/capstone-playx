@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import { Song } from '../types';
-import api from '../services/api';
+import api, { getFullMediaUrl } from '../services/api';
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
@@ -130,8 +130,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const audio = audioRef.current;
       const song = currentSongRef.current;
       if (audio && song) {
-        const streamEndpoint = `/api/songs/${song.id}/stream`;
-        const localAudioFallback = `/audio/${song.id}.mp3`;
+        const streamEndpoint = getFullMediaUrl(`/api/songs/${song.id}/stream`);
+        const localAudioFallback = getFullMediaUrl(`/audio/${song.id}.mp3`);
         const currentSrc = audio.src || '';
         if (!currentSrc.includes(streamEndpoint)) {
           console.warn(`Audio playback issue for "${song.title}", loading stream endpoint.`);
@@ -203,7 +203,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (loadedSongIdRef.current !== song.id) {
         audio.pause();
         // Load through PLAYX internal streaming endpoint
-        const targetAudioSrc = `/api/songs/${song.id}/stream`;
+        const targetAudioSrc = getFullMediaUrl(`/api/songs/${song.id}/stream`);
         audio.src = targetAudioSrc;
         audio.load();
         loadedSongIdRef.current = song.id;
@@ -213,8 +213,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       audio.volume = volumeRef.current;
       audio.play().catch(err => {
         console.log('Stream playback notice, checking fallback:', err);
-        if (song.audio_url && song.audio_url.startsWith('/audio/')) {
-          audio.src = song.audio_url;
+        if (song.audio_url) {
+          audio.src = getFullMediaUrl(song.audio_url);
           audio.load();
           audio.play().catch(console.error);
         }

@@ -304,7 +304,10 @@ public class PlaylistController {
         }
 
         String songId = body.get("song_id");
-        if (songId == null) {
+        if (songId == null || songId.isBlank()) {
+            songId = body.get("songId");
+        }
+        if (songId == null || songId.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Song ID is required"));
         }
 

@@ -21,9 +21,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Configuration
@@ -34,8 +32,8 @@ public class WebSecurityConfig {
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Value("${cors.allowed-origins:${CORS_ALLOWED_ORIGINS:*}}")
-    private String corsAllowedOrigins;
+    @Value("${frontend.url:${FRONTEND_URL:${cors.allowed-origins:${CORS_ALLOWED_ORIGINS:}}}}")
+    private String configuredOrigins;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -89,20 +87,35 @@ public class WebSecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        if (corsAllowedOrigins != null && !corsAllowedOrigins.trim().isEmpty() && !corsAllowedOrigins.trim().equals("*")) {
-            List<String> origins = Arrays.stream(corsAllowedOrigins.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .collect(Collectors.toList());
-            configuration.setAllowedOriginPatterns(origins);
-        } else {
-            configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
+        Set<String> allowedOriginsSet = new java.util.LinkedHashSet<>();
+        // 1. Standard development origins
+        allowedOriginsSet.add("http://localhost:5173");
+        allowedOriginsSet.add("http://localhost:3000");
+        allowedOriginsSet.add("http://127.0.0.1:5173");
+        allowedOriginsSet.add("http://127.0.0.1:3000");
+
+        // 2. Vercel production domain
+        allowedOriginsSet.add("https://playx-music-streaming-git-master-boct.vercel.app");
+
+        // 3. Dynamic origins from FRONTEND_URL / CORS_ALLOWED_ORIGINS
+        if (configuredOrigins != null && !configuredOrigins.trim().isEmpty()) {
+            for (String origin : configuredOrigins.split(",")) {
+                String clean = origin.trim();
+                if (!clean.isEmpty() && !clean.equals("*")) {
+                    if (clean.endsWith("/")) {
+                        clean = clean.substring(0, clean.length() - 1);
+                    }
+                    allowedOriginsSet.add(clean);
+                }
+            }
         }
-        
+
+        configuration.setAllowedOrigins(new ArrayList<>(allowedOriginsSet));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Range", "Accept", "Origin", "X-Requested-With"));
         configuration.setExposedHeaders(Arrays.asList("Content-Range", "Accept-Ranges", "Content-Length"));
         configuration.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

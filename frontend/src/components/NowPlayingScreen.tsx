@@ -148,7 +148,7 @@ const NowPlayingScreen: React.FC = () => {
 
   const handleAddToPlaylist = async (playlistId: string, playlistName: string) => {
     try {
-      await api.post(`/playlists/${playlistId}/songs`, { songId: currentSong.id });
+      await api.post(`/playlists/${playlistId}/songs`, { song_id: currentSong.id, songId: currentSong.id });
       showToast(`Added to "${playlistName}"`);
       setShowPlaylistPicker(false);
       setShowMenu(false);

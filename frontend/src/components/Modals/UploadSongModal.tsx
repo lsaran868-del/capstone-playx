@@ -177,9 +177,6 @@ const UploadSongModal: React.FC<UploadSongModalProps> = ({ onClose, onUploaded }
       formData.append('duration', detectedDuration.toString());
 
       await api.post('/songs/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);

@@ -50,9 +50,7 @@ const PlaylistDetails: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await api.post('/upload/image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await api.post('/upload/image', formData);
       const newCoverUrl = res.data.url;
       await api.put(`/playlists/${id}`, {
         name: playlist.name,
