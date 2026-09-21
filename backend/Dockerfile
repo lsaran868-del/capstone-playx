@@ -22,7 +22,8 @@ WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
 # Expose default Render port
-EXPOSE 10000
+EXPOSE 8080
+
 
 # Start Spring Boot application
 CMD ["java", "-jar", "app.jar"]
