@@ -4,11 +4,11 @@ FROM maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
 # Copy pom.xml and pre-fetch dependencies for layer caching
-COPY pom.xml .
+COPY backend/pom.xml .
 RUN mvn dependency:resolve -B
 
-# Copy source code
-COPY src ./src
+# Copy backend source code
+COPY backend/src ./src
 
 # Package application JAR without running tests
 RUN mvn clean package -DskipTests
