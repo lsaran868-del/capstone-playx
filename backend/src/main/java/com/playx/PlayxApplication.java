@@ -219,6 +219,26 @@ public class PlayxApplication {
             dbUrl = dbUrl.substring(1, dbUrl.length() - 1);
         }
 
+        // Production guard: fail fast if cloud configuration accidentally specifies localhost
+        if (isProductionEnvironment() && (dbUrl.contains("localhost") || dbUrl.contains("127.0.0.1"))) {
+            throw new IllegalStateException(
+                "\n======================================================================\n" +
+                "❌ [PLAYX PRODUCTION DATABASE CONFIGURATION ERROR]\n" +
+                "   The configured database URL is attempting to connect to 'localhost':\n" +
+                "   " + sanitizeUrlForLogging(dbUrl) + "\n\n" +
+                "   In Render / Railway cloud containers, 'localhost' refers to the container itself.\n" +
+                "   Your MySQL database is NOT running inside this container.\n\n" +
+                "   HOW TO FIX IN RENDER DASHBOARD:\n" +
+                "   1. Go to your Render Web Service -> 'Environment' tab.\n" +
+                "   2. Update 'DATABASE_URL' or 'SPRING_DATASOURCE_URL'.\n" +
+                "   3. Replace 'localhost:3306' with your remote Railway MySQL public host and port:\n" +
+                "      e.g. mysql://root:PASSWORD@roundhouse.proxy.rlwy.net:PORT/railway\n" +
+                "   4. Or configure individual variables:\n" +
+                "      MYSQLHOST, MYSQLPORT, MYSQLDATABASE, MYSQLUSER, MYSQLPASSWORD\n" +
+                "======================================================================\n"
+            );
+        }
+
         boolean isPostgres = dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://") || dbUrl.startsWith("jdbc:postgresql:");
         boolean isMysql = dbUrl.startsWith("mysql://") || dbUrl.startsWith("mysql2://") || dbUrl.startsWith("jdbc:mysql:");
 
