@@ -128,64 +128,34 @@ public class PlayxApplication {
             }
         }
 
-        // 2. TiDB Cloud / MySQL direct environment variables
-        String host = getFirstEnvOrProp("TIDB_HOST", "MYSQLHOST", "MYSQL_HOST", "DB_HOST");
-        boolean isLocalHost = host == null || host.isBlank() ||
-                              host.equalsIgnoreCase("localhost") ||
-                              host.equals("127.0.0.1");
+        // 2. TiDB Cloud / MySQL direct environment variables or defaults
+        String host = getFirstEnvOrDefault("gateway01.ap-southeast-1.prod.aws.tidbcloud.com", "TIDB_HOST", "MYSQLHOST", "MYSQL_HOST", "DB_HOST");
+        if (isProd && (host.equalsIgnoreCase("localhost") || host.equals("127.0.0.1"))) {
+            host = "gateway01.ap-southeast-1.prod.aws.tidbcloud.com";
+        }
 
-        if (!isLocalHost) {
-            String port = getFirstEnvOrProp("TIDB_PORT", "MYSQLPORT", "MYSQL_PORT", "DB_PORT", "3306");
-            String db = getFirstEnvOrProp("TIDB_DATABASE", "MYSQLDATABASE", "MYSQL_DATABASE", "DB_NAME", "test");
-            String user = getFirstEnvOrProp("TIDB_USER", "MYSQLUSER", "MYSQL_USER", "DB_USER", "root");
-            String pass = getFirstEnvOrProp("TIDB_PASSWORD", "MYSQLPASSWORD", "MYSQL_PASSWORD", "DB_PASSWORD", "");
+        String port = getFirstEnvOrDefault("4000", "TIDB_PORT", "MYSQLPORT", "MYSQL_PORT", "DB_PORT");
+        String db = getFirstEnvOrDefault("playx_db", "TIDB_DATABASE", "MYSQLDATABASE", "MYSQL_DATABASE", "DB_NAME");
+        String user = getFirstEnvOrDefault("2ZJ1Px9KDCMNXAk.root", "TIDB_USER", "MYSQLUSER", "MYSQL_USER", "DB_USER");
+        String pass = getFirstEnvOrDefault("yPS4MqN4GPGTYfE3", "TIDB_PASSWORD", "MYSQLPASSWORD", "MYSQL_PASSWORD", "DB_PASSWORD");
 
-            boolean isTidb = host.contains("tidbcloud.com") || port.equals("4000");
-            String sslParams = isTidb
-                ? "?useSSL=true&enabledTLSProtocols=TLSv1.2,TLSv1.3&serverTimezone=UTC"
-                : "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
+        boolean isTidb = host.contains("tidbcloud.com") || port.equals("4000");
+        String sslParams = isTidb
+            ? "?useSSL=true&enabledTLSProtocols=TLSv1.2,TLSv1.3&serverTimezone=UTC"
+            : "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
 
-            String jdbcUrl = "jdbc:mysql://" + host + ":" + port + "/" + db + sslParams;
+        String jdbcUrl = "jdbc:mysql://" + host + ":" + port + "/" + db + sslParams;
 
-            System.setProperty("spring.datasource.url", jdbcUrl);
+        System.setProperty("spring.datasource.url", jdbcUrl);
+        if (user != null) {
             System.setProperty("spring.datasource.username", user);
+        }
+        if (pass != null) {
             System.setProperty("spring.datasource.password", pass);
-            System.setProperty("spring.datasource.driver-class-name", "com.mysql.cj.jdbc.Driver");
-            System.out.println("📦 " + (isTidb ? "TiDB Cloud" : "MySQL") + " configured via environment variables: " + sanitizeUrlForLogging(jdbcUrl));
-            return;
         }
-
-        // 3. Local Development: If running on developer machine with local MySQL on 3306
-        if (!isProd && host != null && !host.isBlank()) {
-            String localPort = getFirstEnvOrProp("MYSQLPORT", "MYSQL_PORT", "3306");
-            String localDb = getFirstEnvOrProp("MYSQLDATABASE", "MYSQL_DATABASE", "PlayX_db");
-            String localUser = getFirstEnvOrProp("MYSQLUSER", "MYSQL_USER", "root");
-            String localPass = getFirstEnvOrProp("MYSQLPASSWORD", "MYSQL_PASSWORD", "");
-
-            String localJdbcUrl = "jdbc:mysql://" + host + ":" + localPort + "/" + localDb +
-                                  "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
-
-            System.setProperty("spring.datasource.url", localJdbcUrl);
-            System.setProperty("spring.datasource.username", localUser);
-            System.setProperty("spring.datasource.password", localPass);
-            System.setProperty("spring.datasource.driver-class-name", "com.mysql.cj.jdbc.Driver");
-            System.out.println("💻 Local development MySQL configured: " + sanitizeUrlForLogging(localJdbcUrl));
-            return;
-        }
-
-        // 4. Zero-Config Mode (Render / Cloud deployment without environment variables)
-        // Starts with embedded in-memory MySQL-compatible database so deployment succeeds immediately!
-        String h2Url = "jdbc:h2:mem:playx_db;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1";
-        System.setProperty("spring.datasource.url", h2Url);
-        System.setProperty("spring.datasource.driver-class-name", "org.h2.Driver");
-        System.setProperty("spring.datasource.username", "sa");
-        System.setProperty("spring.datasource.password", "");
-        System.out.println("\n🚀 ======================================================================");
-        System.out.println("   [PLAYX ZERO-CONFIG DEPLOYMENT ACTIVE]");
-        System.out.println("   No database environment variables detected.");
-        System.out.println("   Application is running with embedded cloud database (all songs/users loaded).");
-        System.out.println("   👉 When ready, add TiDB Cloud DATABASE_URL in Render settings to connect.");
-        System.out.println("======================================================================\n");
+        System.setProperty("spring.datasource.driver-class-name", "com.mysql.cj.jdbc.Driver");
+        System.out.println("📦 Connected to " + (isTidb ? "TiDB Cloud MySQL" : "MySQL") + ": " + sanitizeUrlForLogging(jdbcUrl));
+        return;
     }
 
     /**
@@ -243,19 +213,20 @@ public class PlayxApplication {
                     System.setProperty("spring.datasource.password", pass);
                 }
 
+                boolean isTidb = hostPortPathQuery.contains("tidbcloud.com") || hostPortPathQuery.contains(":4000");
                 StringBuilder jdbcUrl = new StringBuilder("jdbc:").append(scheme).append("://").append(hostPortPathQuery);
                 if (scheme.equals("mysql")) {
                     boolean hasQuery = hostPortPathQuery.contains("?");
                     char sep = hasQuery ? '&' : '?';
                     if (!hostPortPathQuery.contains("useSSL")) {
-                        jdbcUrl.append(sep).append("useSSL=false");
+                        jdbcUrl.append(sep).append(isTidb ? "useSSL=true&enabledTLSProtocols=TLSv1.2,TLSv1.3" : "useSSL=false");
                         sep = '&';
                     }
                     if (!hostPortPathQuery.contains("serverTimezone")) {
                         jdbcUrl.append(sep).append("serverTimezone=UTC");
                         sep = '&';
                     }
-                    if (!hostPortPathQuery.contains("allowPublicKeyRetrieval")) {
+                    if (!isTidb && !hostPortPathQuery.contains("allowPublicKeyRetrieval")) {
                         jdbcUrl.append(sep).append("allowPublicKeyRetrieval=true");
                     }
                 } else if (scheme.equals("postgresql") && !hostPortPathQuery.contains("?")) {
@@ -299,5 +270,10 @@ public class PlayxApplication {
             if (val != null && !val.isBlank()) return val;
         }
         return null;
+    }
+
+    private static String getFirstEnvOrDefault(String defaultValue, String... keys) {
+        String val = getFirstEnvOrProp(keys);
+        return (val != null && !val.isBlank()) ? val : defaultValue;
     }
 }
