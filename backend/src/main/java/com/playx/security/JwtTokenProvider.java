@@ -20,7 +20,6 @@ public class JwtTokenProvider {
 
     @Value("${jwt.expiration:604800000}")
     private String jwtExpirationStr;
-    
 
     private long getExpirationMillis() {
         try {
