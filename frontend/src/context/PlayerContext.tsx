@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import { Song } from '../types';
-import api, { getFullMediaUrl } from '../services/api';
+import api, { API_BASE_URL, getFullMediaUrl } from '../services/api';
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
@@ -130,7 +130,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const audio = audioRef.current;
       const song = currentSongRef.current;
       if (audio && song) {
-        const streamEndpoint = getFullMediaUrl(`/api/songs/${song.id}/stream`);
+        const streamEndpoint = `${API_BASE_URL}/songs/${song.id}/stream`;
         const localAudioFallback = getFullMediaUrl(`/audio/${song.id}.mp3`);
         const currentSrc = audio.src || '';
         if (!currentSrc.includes(streamEndpoint)) {
@@ -203,7 +203,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (loadedSongIdRef.current !== song.id) {
         audio.pause();
         // Load through PLAYX internal streaming endpoint
-        const targetAudioSrc = getFullMediaUrl(`/api/songs/${song.id}/stream`);
+        const targetAudioSrc = `${API_BASE_URL}/songs/${song.id}/stream`;
         audio.src = targetAudioSrc;
         audio.load();
         loadedSongIdRef.current = song.id;

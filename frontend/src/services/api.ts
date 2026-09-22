@@ -36,7 +36,11 @@ export const getFullMediaUrl = (path: string | undefined | null): string => {
     return path;
   }
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  // If API_BASE_URL is a full URL (e.g. https://.../api), strip /api to get origin
+  // If path starts with /api/, route directly via API_BASE_URL to avoid /api/api
+  if (cleanPath.startsWith('/api/')) {
+    return `${API_BASE_URL}${cleanPath.slice(4)}`;
+  }
+  // If API_BASE_URL is a full URL (e.g. https://.../api), strip /api to get origin for static uploads
   if (API_BASE_URL.startsWith('http://') || API_BASE_URL.startsWith('https://')) {
     const backendOrigin = API_BASE_URL.replace(/\/api\/?$/, '');
     return `${backendOrigin}${cleanPath}`;
@@ -55,6 +59,11 @@ const api = axios.create({
 // Request Interceptor: attach JWT Bearer token & handle FormData
 api.interceptors.request.use(
   (config) => {
+    // If URL begins with /api/, strip leading /api because baseURL already includes /api
+    if (config.url && config.url.startsWith('/api/')) {
+      config.url = config.url.slice(4);
+    }
+
     const token = localStorage.getItem('playx_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
