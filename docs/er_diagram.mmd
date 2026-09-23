@@ -1,0 +1,91 @@
+erDiagram
+    USERS ||--o{ PLAYLISTS : "creates (1:N)"
+    USERS ||--o{ USER_FAVORITES : "favorites (1:N)"
+    USERS ||--o{ USER_HISTORY : "tracks play history (1:N)"
+    
+    ARTISTS ||--o{ ALBUMS : "releases (1:N)"
+    ARTISTS ||--o{ SONGS : "composes (1:N)"
+    
+    ALBUMS |o--o{ SONGS : "contains (0..1:N)"
+    
+    PLAYLISTS ||--o{ PLAYLIST_SONGS : "contains (1:N)"
+    SONGS ||--o{ PLAYLIST_SONGS : "included in (1:N)"
+    
+    SONGS ||--o{ USER_FAVORITES : "favorited in (1:N)"
+    SONGS ||--o{ USER_HISTORY : "played in (1:N)"
+
+    USERS {
+        bigint id PK
+        string name
+        string email UK
+        string password
+        string role
+        boolean enabled
+        string subscription_status
+        timestamp subscription_start
+        timestamp subscription_end
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ARTISTS {
+        bigint id PK
+        string name
+        text bio
+        string image_url
+        timestamp created_at
+    }
+
+    ALBUMS {
+        bigint id PK
+        string title
+        bigint artist_id FK
+        string cover_url
+        string release_date
+        text description
+        timestamp created_at
+    }
+
+    SONGS {
+        bigint id PK
+        string title
+        bigint artist_id FK
+        bigint album_id FK
+        string genre
+        int duration_seconds
+        string audio_url
+        string cover_url
+        string release_date
+        bigint play_count
+        boolean is_premium
+        timestamp created_at
+    }
+
+    PLAYLISTS {
+        bigint id PK
+        string name
+        string description
+        bigint user_id FK
+        boolean is_private
+        boolean is_premium
+        timestamp created_at
+    }
+
+    PLAYLIST_SONGS {
+        bigint playlist_id PK,FK
+        bigint song_id PK,FK
+        timestamp added_at
+    }
+
+    USER_FAVORITES {
+        bigint user_id PK,FK
+        bigint song_id PK,FK
+        timestamp liked_at
+    }
+
+    USER_HISTORY {
+        bigint id PK
+        bigint user_id FK
+        bigint song_id FK
+        timestamp played_at
+    }
