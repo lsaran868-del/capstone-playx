@@ -1,6 +1,16 @@
 package com.playx.service;
 
-import com.playx.model.*;
+import com.playx.model.Album;
+import com.playx.model.Artist;
+import com.playx.model.Favorite;
+import com.playx.model.Genre;
+import com.playx.model.ListeningHistory;
+import com.playx.model.Playlist;
+import com.playx.model.PlaylistSong;
+import com.playx.model.Song;
+import com.playx.model.Subscription;
+import com.playx.model.User;
+import com.playx.model.UserSubscription;
 import com.playx.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
