@@ -1,7 +1,6 @@
 package com.playx.controller;
 
-import com.playx.model.Playlist;
-import com.playx.model.PlaylistSong;
+import com.playx.model.*;
 import com.playx.repository.*;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
