@@ -31,6 +31,7 @@ public class Subscription {
     @Column(name = "feature")
     private List<String> features;
 
+    @Builder.Default
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }
