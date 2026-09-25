@@ -28,9 +28,11 @@ public class Playlist {
     @Column(name = "cover_art", columnDefinition = "TEXT")
     private String coverArt;
 
+    @Builder.Default
     @Column(name = "is_public")
     private Boolean isPublic = true;
 
+    @Builder.Default
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }
