@@ -25,8 +25,18 @@ public class PlaylistSong {
     private String songId;
 
     @Column(name = "`position`", nullable = false)
-    private Integer position = 1;
+    private Integer position;
 
     @Column(name = "added_at")
-    private LocalDateTime addedAt = LocalDateTime.now();
+    private LocalDateTime addedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.position == null) {
+            this.position = 1;
+        }
+        if (this.addedAt == null) {
+            this.addedAt = LocalDateTime.now();
+        }
+    }
 }
