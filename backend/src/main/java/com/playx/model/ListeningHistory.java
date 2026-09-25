@@ -22,6 +22,7 @@ public class ListeningHistory {
     @Column(name = "song_id", nullable = false, length = 50)
     private String songId;
 
+    @Builder.Default
     @Column(name = "played_at")
     private LocalDateTime playedAt = LocalDateTime.now();
 }
