@@ -25,6 +25,7 @@ public class Genre {
     @Column(name = "cover_image", columnDefinition = "TEXT")
     private String coverImage;
 
+    @Builder.Default
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }
