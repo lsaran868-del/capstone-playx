@@ -25,6 +25,7 @@ public class UserSubscription {
     @Column(nullable = false, length = 20)
     private String status; // 'active', 'canceled', 'expired'
 
+    @Builder.Default
     @Column(name = "starts_at")
     private LocalDateTime startsAt = LocalDateTime.now();
 
