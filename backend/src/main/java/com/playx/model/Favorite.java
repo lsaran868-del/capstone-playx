@@ -24,6 +24,7 @@ public class Favorite {
     @Column(name = "song_id", nullable = false, length = 50)
     private String songId;
 
+    @Builder.Default
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }
