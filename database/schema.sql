@@ -1,6 +1,6 @@
 -- =====================================================================
 -- PLAYX Supabase PostgreSQL Database Schema
--- Active Project: lsaran868-del's Project (Ref: hjgytmzozoydkgvpcyzm)
+-- Active Project: lsaran868-playx (Ref: xrhlsbsyrzvpznuspqvh)
 -- Fully compatible with Supabase PostgreSQL and Spring Boot JPA Entities
 -- =====================================================================
 
