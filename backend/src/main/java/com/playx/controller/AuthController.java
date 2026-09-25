@@ -44,9 +44,6 @@ public class AuthController {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
-    private static final java.util.regex.Pattern EMAIL_PATTERN = 
-            java.util.regex.Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
-
     private boolean isValidEmail(String email) {
         if (email == null) return false;
         String clean = email.trim();
