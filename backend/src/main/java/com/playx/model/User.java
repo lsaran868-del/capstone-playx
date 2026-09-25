@@ -31,6 +31,7 @@ public class User {
     @Column(columnDefinition = "TEXT")
     private String avatar;
 
+    @Builder.Default
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }
