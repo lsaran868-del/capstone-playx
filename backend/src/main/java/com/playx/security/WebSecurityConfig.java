@@ -22,7 +22,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
