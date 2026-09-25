@@ -25,12 +25,15 @@ public class Album {
     @Column(name = "cover_art", columnDefinition = "TEXT")
     private String coverArt;
 
+    @Builder.Default
     @Column(name = "release_year")
     private Integer releaseYear = 2024;
 
+    @Builder.Default
     @Column(length = 50)
     private String genre = "Pop";
 
+    @Builder.Default
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }
