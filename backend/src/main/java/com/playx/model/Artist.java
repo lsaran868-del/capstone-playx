@@ -28,12 +28,15 @@ public class Artist {
     @Column(columnDefinition = "TEXT")
     private String image;
 
+    @Builder.Default
     @Column(name = "is_verified")
     private Boolean isVerified = true;
 
+    @Builder.Default
     @Column(name = "monthly_listeners")
     private Integer monthlyListeners = 0;
 
+    @Builder.Default
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }
