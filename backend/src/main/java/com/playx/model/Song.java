@@ -32,6 +32,7 @@ public class Song {
     @Column(name = "audio_url", nullable = false, columnDefinition = "TEXT")
     private String audioUrl;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer duration = 180; // in seconds
 
@@ -41,15 +42,18 @@ public class Song {
     @Column(name = "file_path", columnDefinition = "TEXT")
     private String filePath;
 
+    @Builder.Default
     @Column(name = "plays_count")
     private Integer playsCount = 0;
 
+    @Builder.Default
     @Column(name = "release_date")
     private LocalDate releaseDate = LocalDate.now();
 
     @Column(name = "lyrics", columnDefinition = "TEXT")
     private String lyrics;
 
+    @Builder.Default
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }
