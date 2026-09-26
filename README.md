@@ -52,7 +52,7 @@
 
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, React Router v6, Axios
 - **Backend**: Java 17+, Spring Boot 3, Spring Security, Spring Data JPA, JWT (`jjwt`), Maven
-- **Database**: MySQL 8+ relational database (`PlayX_db` on `localhost:3306`)
+- **Database**: Supabase PostgreSQL cloud relational database (12 tables with Row Level Security)
 - **Audio Streaming**: Local high-fidelity MP3 music tracks bundled in `public/audio/`, HTTP byte-range audio streaming
 - **Styling**: Modern dark mode with Glassmorphism backdrop filters and custom responsive layout
 
@@ -127,7 +127,7 @@ PlayX/
 ### Prerequisites
 - Node.js (v18 or higher)
 - npm or yarn
-- MySQL 8.0+ running on `localhost:3306` (Database: `PlayX_db`)
+- Supabase Project (`lsaran868-playx` on PostgreSQL 17)
 
 ### Installation Steps
 
@@ -161,15 +161,16 @@ PlayX/
 PLAYX is pre-configured to run on Replit:
 
 1. Import the repository into Replit.
-2. If using an external MySQL Database, set `DATABASE_URL` in **Secrets (Environment Variables)**.
+2. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in **Secrets (Environment Variables)**.
 3. Click **Run**. Replit will execute `npm run dev`, launching both the Express backend API and the Vite frontend web server automatically.
 
 ---
 
-## 📜 Database Schema (MySQL)
+## 📜 Database Schema (Supabase PostgreSQL)
 
-The database includes 11 tables:
+The database includes 12 relational tables managed via Supabase:
 - `subscriptions`
+- `subscription_features`
 - `users`
 - `user_subscriptions`
 - `artists`
@@ -181,4 +182,4 @@ The database includes 11 tables:
 - `favorites`
 - `listening_history`
 
-Migration queries and seed data are stored in `database/schema.sql` and `backend/src/seed/seedData.ts`.
+Data persistence and Row Level Security (RLS) are enforced directly through Supabase PostgreSQL.

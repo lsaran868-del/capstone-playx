@@ -429,7 +429,7 @@ export type Database = {
           email: string
           id: string
           name: string
-          password: string
+          password?: string | null
           role: string
         }
         Insert: {
@@ -438,7 +438,7 @@ export type Database = {
           email: string
           id: string
           name: string
-          password: string
+          password?: string | null
           role?: string
         }
         Update: {
@@ -447,7 +447,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string
-          password?: string
+          password?: string | null
           role?: string
         }
         Relationships: []

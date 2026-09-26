@@ -12,16 +12,14 @@ services:
         value: 8080
       - key: SPRING_PROFILES_ACTIVE
         value: production
-      - key: TIDB_HOST
-        value: gateway01.ap-southeast-1.prod.aws.tidbcloud.com
-      - key: TIDB_PORT
-        value: "4000"
-      - key: TIDB_DATABASE
-        value: playx_db
-      - key: TIDB_USER
-        value: 2ZJ1Px9KDCMNXAk.root
-      - key: TIDB_PASSWORD
-        value: yPS4MqN4GPGTYfE3
+      - key: SUPABASE_DB_HOST
+        value: db.xrhlsbsyrzvpznuspqvh.supabase.co
+      - key: SUPABASE_DB_PORT
+        value: "5432"
+      - key: SUPABASE_DB_NAME
+        value: postgres
+      - key: SUPABASE_DB_USER
+        value: postgres
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ALLOWED_ORIGINS
@@ -41,4 +39,8 @@ services:
     envVars:
       - key: VITE_API_BASE_URL
         value: https://capstone-playx-14.onrender.com/api
+      - key: VITE_SUPABASE_URL
+        value: https://xrhlsbsyrzvpznuspqvh.supabase.co
+      - key: VITE_SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaGxzYnN5cnp2cHpudXNwcXZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMTEyNjksImV4cCI6MjEwNTg4NzI2OX0.rMAqpB6zQAOQwTxBcmLFV_dqYBWt88z0ExEbPaxQg_c
 

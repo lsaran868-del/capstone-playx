@@ -177,7 +177,7 @@ const UploadSongModal: React.FC<UploadSongModalProps> = ({ onClose, onUploaded }
       formData.append('duration', detectedDuration.toString());
 
       await api.post('/songs/upload', formData, {
-        onUploadProgress: (progressEvent) => {
+        onUploadProgress: (progressEvent: any) => {
           if (progressEvent.total) {
             const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
             setUploadProgress(percent);
@@ -468,7 +468,7 @@ const UploadSongModal: React.FC<UploadSongModalProps> = ({ onClose, onUploaded }
           {isUploading && (
             <div className="space-y-2 p-4 rounded-2xl bg-pink-500/10 border border-pink-500/30 animate-pulse">
               <div className="flex items-center justify-between text-xs font-bold text-pink-300">
-                <span>Uploading audio & saving metadata to MySQL...</span>
+                <span>Uploading audio & saving metadata to Supabase...</span>
                 <span>{uploadProgress}%</span>
               </div>
               <div className="w-full h-2 bg-muse-dark rounded-full overflow-hidden">

@@ -56,7 +56,7 @@ public class PlayxApplication {
     /**
      * Loads .env from the local working directory or project root if present.
      * In production (Railway / Render), local .env files are intentionally skipped
-     * so that local settings (like MYSQL_HOST=localhost) do not override cloud variables.
+     * so that local settings do not override cloud variables.
      */
     private static void loadEnvFile() {
         if (isProductionEnvironment()) {
@@ -99,95 +99,68 @@ public class PlayxApplication {
     }
 
     /**
-     * Normalizes database connection parameters for TiDB Cloud, MySQL, PostgreSQL,
-     * or seamlessly starts with an embedded zero-config database if no environment variables are set.
+     * Normalizes database connection parameters for Supabase PostgreSQL,
+     * ensuring PostgreSQL is the sole relational database engine used.
      */
     private static void configureDatabaseProperties() {
-        boolean isProd = isProductionEnvironment();
-
-        // 1. Explicit SPRING_DATASOURCE_URL, DATABASE_URL, or TIDB_URL
+        // 1. Explicit DATABASE_URL, SPRING_DATASOURCE_URL, or SUPABASE_DATABASE_URL
         String dbUrl = getFirstEnvOrProp(
+            "SUPABASE_DATABASE_URL",
+            "SUPABASE_JDBC_URL",
             "DATABASE_URL",
             "SPRING_DATASOURCE_URL",
-            "TIDB_URL",
-            "MYSQL_URL",
-            "MYSQL_PRIVATE_URL",
-            "MYSQLPRIVATEURL",
             "POSTGRES_URL",
             "DB_URL"
         );
 
         if (dbUrl != null && !dbUrl.isBlank()) {
-            dbUrl = dbUrl.trim();
-            if (isProd && (dbUrl.contains("localhost") || dbUrl.contains("127.0.0.1"))) {
-                System.err.println("⚠️ Database URL points to localhost in a cloud container. Switching to embedded database.");
-            } else {
-                configureUrl(dbUrl);
-                return;
-            }
+            configureUrl(dbUrl.trim());
+            return;
         }
 
-        // 2. TiDB Cloud / MySQL direct environment variables or defaults
-        String host = getFirstEnvOrDefault("gateway01.ap-southeast-1.prod.aws.tidbcloud.com", "TIDB_HOST", "MYSQLHOST", "MYSQL_HOST", "DB_HOST");
-        if (isProd && (host.equalsIgnoreCase("localhost") || host.equals("127.0.0.1"))) {
-            host = "gateway01.ap-southeast-1.prod.aws.tidbcloud.com";
-        }
+        // 2. Default to Supabase PostgreSQL cloud host
+        String host = getFirstEnvOrDefault("db.xrhlsbsyrzvpznuspqvh.supabase.co", "SUPABASE_DB_HOST", "PGHOST", "POSTGRES_HOST");
+        String port = getFirstEnvOrDefault("5432", "SUPABASE_DB_PORT", "PGPORT", "POSTGRES_PORT");
+        String db = getFirstEnvOrDefault("postgres", "SUPABASE_DB_NAME", "PGDATABASE", "POSTGRES_DB");
+        String user = getFirstEnvOrDefault("postgres", "SUPABASE_DB_USER", "PGUSER", "POSTGRES_USER");
+        String pass = getFirstEnvOrDefault("", "SUPABASE_DB_PASSWORD", "PGPASSWORD", "POSTGRES_PASSWORD");
 
-        String port = getFirstEnvOrDefault("4000", "TIDB_PORT", "MYSQLPORT", "MYSQL_PORT", "DB_PORT");
-        String db = getFirstEnvOrDefault("playx_db", "TIDB_DATABASE", "MYSQLDATABASE", "MYSQL_DATABASE", "DB_NAME");
-        String user = getFirstEnvOrDefault("2ZJ1Px9KDCMNXAk.root", "TIDB_USER", "MYSQLUSER", "MYSQL_USER", "DB_USER");
-        String pass = getFirstEnvOrDefault("yPS4MqN4GPGTYfE3", "TIDB_PASSWORD", "MYSQLPASSWORD", "MYSQL_PASSWORD", "DB_PASSWORD");
-
-        boolean isTidb = host.contains("tidbcloud.com") || port.equals("4000");
-        String sslParams = isTidb
-            ? "?useSSL=true&enabledTLSProtocols=TLSv1.2,TLSv1.3&serverTimezone=UTC"
-            : "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
-
-        String jdbcUrl = "jdbc:mysql://" + host + ":" + port + "/" + db + sslParams;
+        String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + db + "?sslmode=require";
 
         System.setProperty("spring.datasource.url", jdbcUrl);
-        if (user != null) {
+        System.setProperty("spring.datasource.driver-class-name", "org.postgresql.Driver");
+        if (user != null && !user.isBlank()) {
             System.setProperty("spring.datasource.username", user);
         }
-        if (pass != null) {
+        if (pass != null && !pass.isBlank()) {
             System.setProperty("spring.datasource.password", pass);
         }
-        System.setProperty("spring.datasource.driver-class-name", "com.mysql.cj.jdbc.Driver");
-        System.out.println("📦 Connected to " + (isTidb ? "TiDB Cloud MySQL" : "MySQL") + ": " + sanitizeUrlForLogging(jdbcUrl));
-        return;
+        System.out.println("📦 Connected to Supabase PostgreSQL: " + sanitizeUrlForLogging(jdbcUrl));
     }
 
     /**
-     * Parses and applies a database URL (JDBC, TiDB Cloud, MySQL, or PostgreSQL URI format).
+     * Parses and applies a PostgreSQL database URL.
      */
     private static void configureUrl(String dbUrl) {
         if ((dbUrl.startsWith("\"") && dbUrl.endsWith("\"")) || (dbUrl.startsWith("'") && dbUrl.endsWith("'"))) {
             dbUrl = dbUrl.substring(1, dbUrl.length() - 1);
         }
 
-        boolean isPostgres = dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://") || dbUrl.startsWith("jdbc:postgresql:");
-        boolean isMysql = dbUrl.startsWith("mysql://") || dbUrl.startsWith("mysql2://") || dbUrl.startsWith("jdbc:mysql:");
-
-        if (isPostgres) {
-            System.setProperty("spring.datasource.driver-class-name", "org.postgresql.Driver");
-        } else if (isMysql) {
-            System.setProperty("spring.datasource.driver-class-name", "com.mysql.cj.jdbc.Driver");
-        }
+        System.setProperty("spring.datasource.driver-class-name", "org.postgresql.Driver");
 
         if (dbUrl.startsWith("jdbc:")) {
             System.setProperty("spring.datasource.url", dbUrl);
-            String u = getFirstEnvOrProp("SPRING_DATASOURCE_USERNAME", "MYSQLUSER", "MYSQL_USER", "TIDB_USER");
-            String p = getFirstEnvOrProp("SPRING_DATASOURCE_PASSWORD", "MYSQLPASSWORD", "MYSQL_PASSWORD", "TIDB_PASSWORD");
+            String u = getFirstEnvOrProp("SPRING_DATASOURCE_USERNAME", "SUPABASE_DB_USER", "PGUSER");
+            String p = getFirstEnvOrProp("SPRING_DATASOURCE_PASSWORD", "SUPABASE_DB_PASSWORD", "PGPASSWORD");
             if (u != null) System.setProperty("spring.datasource.username", u);
             if (p != null) System.setProperty("spring.datasource.password", p);
             System.out.println("📦 JDBC URL configured directly: " + sanitizeUrlForLogging(dbUrl));
             return;
         }
 
-        if (dbUrl.startsWith("mysql://") || dbUrl.startsWith("mysql2://") || dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://")) {
+        if (dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://")) {
             try {
                 int schemeEnd = dbUrl.indexOf("://");
-                String scheme = dbUrl.startsWith("postgres") ? "postgresql" : "mysql";
                 String rest = dbUrl.substring(schemeEnd + 3);
 
                 String userInfo = null;
@@ -212,31 +185,16 @@ public class PlayxApplication {
                     System.setProperty("spring.datasource.password", pass);
                 }
 
-                boolean isTidb = hostPortPathQuery.contains("tidbcloud.com") || hostPortPathQuery.contains(":4000");
-                StringBuilder jdbcUrl = new StringBuilder("jdbc:").append(scheme).append("://").append(hostPortPathQuery);
-                if (scheme.equals("mysql")) {
-                    boolean hasQuery = hostPortPathQuery.contains("?");
-                    char sep = hasQuery ? '&' : '?';
-                    if (!hostPortPathQuery.contains("useSSL")) {
-                        jdbcUrl.append(sep).append(isTidb ? "useSSL=true&enabledTLSProtocols=TLSv1.2,TLSv1.3" : "useSSL=false");
-                        sep = '&';
-                    }
-                    if (!hostPortPathQuery.contains("serverTimezone")) {
-                        jdbcUrl.append(sep).append("serverTimezone=UTC");
-                        sep = '&';
-                    }
-                    if (!isTidb && !hostPortPathQuery.contains("allowPublicKeyRetrieval")) {
-                        jdbcUrl.append(sep).append("allowPublicKeyRetrieval=true");
-                    }
-                } else if (scheme.equals("postgresql") && !hostPortPathQuery.contains("?")) {
+                StringBuilder jdbcUrl = new StringBuilder("jdbc:postgresql://").append(hostPortPathQuery);
+                if (!hostPortPathQuery.contains("?")) {
                     jdbcUrl.append("?sslmode=prefer");
                 }
 
                 String finalJdbcUrl = jdbcUrl.toString();
                 System.setProperty("spring.datasource.url", finalJdbcUrl);
-                System.out.println("📦 Cloud database URL converted to JDBC: " + sanitizeUrlForLogging(finalJdbcUrl));
+                System.out.println("📦 Cloud PostgreSQL URL converted to JDBC: " + sanitizeUrlForLogging(finalJdbcUrl));
             } catch (Exception e) {
-                System.err.println("⚠️ Could not parse database URL: " + e.getMessage());
+                System.err.println("⚠️ Could not parse PostgreSQL database URL: " + e.getMessage());
             }
         }
     }

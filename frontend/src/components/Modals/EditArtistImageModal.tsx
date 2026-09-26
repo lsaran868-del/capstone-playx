@@ -93,7 +93,7 @@ const EditArtistImageModal: React.FC<EditArtistImageModalProps> = ({ artist, onC
         formData.append('imageFile', selectedFile);
 
         response = await api.put(`/admin/artists/${artist.id}/image`, formData, {
-          onUploadProgress: (progressEvent) => {
+          onUploadProgress: (progressEvent: any) => {
             if (progressEvent.total) {
               const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
               setUploadProgress(percent);
