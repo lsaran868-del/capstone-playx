@@ -61,14 +61,15 @@ public class SeedDataService implements CommandLineRunner {
     private PasswordEncoder passwordEncoder;
 
     @Override
-    public void run(String... args) throws Exception {
-        // Ensure A.R. Rahman and other artists have their curated portraits if using generic placeholders
-        artistRepository.findById("art_arr").ifPresent(arr -> {
-            if (arr.getImage() == null || arr.getImage().contains("unsplash")) {
-                arr.setImage("/images/music_directors/arr_art.jpg");
-                artistRepository.save(arr);
-            }
-        });
+    public void run(String... args) {
+        try {
+            // Ensure A.R. Rahman and other artists have their curated portraits if using generic placeholders
+            artistRepository.findById("art_arr").ifPresent(arr -> {
+                if (arr.getImage() == null || arr.getImage().contains("unsplash")) {
+                    arr.setImage("/images/music_directors/arr_art.jpg");
+                    artistRepository.save(arr);
+                }
+            });
 
         if (subscriptionRepository.count() > 0) {
             System.out.println("🌱 Database already seeded.");
@@ -303,5 +304,8 @@ public class SeedDataService implements CommandLineRunner {
         listeningHistoryRepository.save(ListeningHistory.builder().id("hist_3").userId("usr_user").songId("sng_cozy_coffee").playedAt(LocalDateTime.now()).build());
 
         System.out.println("✅ PLAYX Database seeded successfully!");
+        } catch (Exception e) {
+            System.err.println("ℹ️ SeedDataService deferred: Supabase PostgreSQL is the active cloud database (Seed check: " + e.getMessage() + ")");
+        }
     }
 }

@@ -3,7 +3,6 @@ package com.playx.controller;
 import com.playx.model.Album;
 import com.playx.model.Artist;
 import com.playx.model.Playlist;
-import com.playx.model.PlaylistSong;
 import com.playx.model.Song;
 import com.playx.model.User;
 import com.playx.repository.*;
