@@ -215,11 +215,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
         navigate('/', { replace: true });
       }, 1200);
     } catch (err: any) {
-      const serverMsg = err.response?.data?.error || err.response?.data?.message;
+      const serverMsg = err.response?.data?.error || err.response?.data?.message || err.message;
       if (serverMsg) {
         setError(serverMsg);
-      } else if (err.message === 'Network Error' || !err.response) {
-        setError('Unable to connect to PlayX server. Please ensure the backend is running.');
       } else {
         setError('Authentication failed. Please check your credentials and try again.');
       }
@@ -259,11 +257,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
         navigate('/', { replace: true });
       }, 1200);
     } catch (err: any) {
-      const serverMsg = err.response?.data?.error || err.response?.data?.message;
+      const serverMsg = err.response?.data?.error || err.response?.data?.message || err.message;
       if (serverMsg) {
         setError(serverMsg);
-      } else if (err.message === 'Network Error' || !err.response) {
-        setError('Unable to reach PlayX server. Please check your connection.');
       } else {
         setError('Registration failed. Please try again.');
       }
