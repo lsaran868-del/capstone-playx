@@ -20,7 +20,7 @@ public class PlayxApplication {
 
         String port = System.getenv("PORT");
         if (port == null || port.isBlank()) {
-            port = System.getProperty("server.port", "8080");
+            port = System.getProperty("PORT", System.getProperty("server.port", "5000"));
         }
 
         System.out.println("\n🎧 ===============================================\n" +
