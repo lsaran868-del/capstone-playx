@@ -17,7 +17,7 @@ public class HealthController {
     @Autowired(required = false)
     private DataSource dataSource;
 
-    @GetMapping({"/", "/api/health"})
+    @GetMapping({"/", "/health", "/api/health"})
     public ResponseEntity<Map<String, Object>> checkHealth() {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("status", "UP");

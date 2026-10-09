@@ -47,16 +47,18 @@ public class WebSecurityConfig {
             .headers(headers -> headers.frameOptions(Customizer.withDefaults()).disable()) // Allow H2 Console frames
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Allow static resources, root status, error endpoint & H2 console
+                // Allow static resources, root status, error endpoint, health check & H2 console
                 .requestMatchers(
+                    AntPathRequestMatcher.antMatcher(HttpMethod.OPTIONS, "/**"),
                     AntPathRequestMatcher.antMatcher("/"),
+                    AntPathRequestMatcher.antMatcher("/health"),
+                    AntPathRequestMatcher.antMatcher("/api/health"),
                     AntPathRequestMatcher.antMatcher("/error"),
                     AntPathRequestMatcher.antMatcher("/h2-console/**"),
                     AntPathRequestMatcher.antMatcher("/public/**"),
                     AntPathRequestMatcher.antMatcher("/audio/**"),
                     AntPathRequestMatcher.antMatcher("/uploads/**"),
-                    AntPathRequestMatcher.antMatcher("/uploads/covers/**"),
-                    AntPathRequestMatcher.antMatcher("/api/health")
+                    AntPathRequestMatcher.antMatcher("/uploads/covers/**")
                 ).permitAll()
                 // Auth paths
                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/register"), AntPathRequestMatcher.antMatcher("/api/auth/login"), AntPathRequestMatcher.antMatcher("/api/auth/social-login"), AntPathRequestMatcher.antMatcher("/api/auth/logout")).permitAll()
@@ -87,42 +89,53 @@ public class WebSecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         Set<String> allowedOriginsSet = new java.util.LinkedHashSet<>();
+        List<String> allowedPatternsList = new java.util.ArrayList<>();
+
         // 1. Standard development origins
         allowedOriginsSet.add("http://localhost:5173");
         allowedOriginsSet.add("http://localhost:3000");
         allowedOriginsSet.add("http://127.0.0.1:5173");
         allowedOriginsSet.add("http://127.0.0.1:3000");
 
-        // 2. Vercel production domains
+        // 2. Default origin patterns for development and Vercel preview/production deployments
+        allowedPatternsList.add("https://*.vercel.app");
+        allowedPatternsList.add("http://localhost:*");
+        allowedPatternsList.add("http://127.0.0.1:*");
+
+        // 3. Known Vercel production domains
         allowedOriginsSet.add("https://playx-music-streaming-git-master-boct.vercel.app");
         allowedOriginsSet.add("https://playx-music-streaming-beta.vercel.app");
         allowedOriginsSet.add("https://playx-music-streaming-git-main-boct.vercel.app");
         allowedOriginsSet.add("https://playx-music-streaming-pizgzm2p1-boct.vercel.app");
 
-        // 3. Dynamic origins from FRONTEND_URL / CORS_ALLOWED_ORIGINS
+        // 4. Dynamic origins from FRONTEND_URL / CORS_ALLOWED_ORIGINS
         if (configuredOrigins != null && !configuredOrigins.trim().isEmpty()) {
             for (String origin : configuredOrigins.split(",")) {
                 String clean = origin.trim();
-                if (!clean.isEmpty() && !clean.equals("*")) {
-                    if (clean.endsWith("/")) {
-                        clean = clean.substring(0, clean.length() - 1);
+                if (!clean.isEmpty()) {
+                    if (clean.equals("*")) {
+                        allowedPatternsList.add("*");
+                    } else {
+                        if (clean.endsWith("/")) {
+                            clean = clean.substring(0, clean.length() - 1);
+                        }
+                        if (clean.contains("*")) {
+                            allowedPatternsList.add(clean);
+                        } else {
+                            allowedOriginsSet.add(clean);
+                        }
                     }
-                    allowedOriginsSet.add(clean);
                 }
             }
         }
 
-        // Support explicit origins as well as *.vercel.app patterns with credentials
         configuration.setAllowedOrigins(new ArrayList<>(allowedOriginsSet));
-        configuration.setAllowedOriginPatterns(Arrays.asList(
-                "https://*.vercel.app",
-                "http://localhost:*",
-                "http://127.0.0.1:*"
-        ));
+        configuration.setAllowedOriginPatterns(allowedPatternsList);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Range", "Accept", "Origin", "X-Requested-With"));
-        configuration.setExposedHeaders(Arrays.asList("Content-Range", "Accept-Ranges", "Content-Length"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Range", "Accept", "Origin", "X-Requested-With", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
+        configuration.setExposedHeaders(Arrays.asList("Content-Range", "Accept-Ranges", "Content-Length", "Authorization"));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

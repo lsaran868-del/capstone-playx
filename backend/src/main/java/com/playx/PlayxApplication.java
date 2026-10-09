@@ -118,12 +118,12 @@ public class PlayxApplication {
             return;
         }
 
-        // 2. Default to Supabase PostgreSQL cloud host
-        String host = getFirstEnvOrDefault("db.xrhlsbsyrzvpznuspqvh.supabase.co", "SUPABASE_DB_HOST", "PGHOST", "POSTGRES_HOST");
+        // 2. Default to Supabase PostgreSQL cloud host (Session Pooler with IPv4 support)
+        String host = getFirstEnvOrDefault("aws-0-ap-southeast-1.pooler.supabase.com", "SUPABASE_DB_HOST", "PGHOST", "POSTGRES_HOST");
         String port = getFirstEnvOrDefault("5432", "SUPABASE_DB_PORT", "PGPORT", "POSTGRES_PORT");
         String db = getFirstEnvOrDefault("postgres", "SUPABASE_DB_NAME", "PGDATABASE", "POSTGRES_DB");
-        String user = getFirstEnvOrDefault("postgres", "SUPABASE_DB_USER", "PGUSER", "POSTGRES_USER");
-        String pass = getFirstEnvOrDefault("", "SUPABASE_DB_PASSWORD", "PGPASSWORD", "POSTGRES_PASSWORD");
+        String user = getFirstEnvOrDefault("playx_app.xrhlsbsyrzvpznuspqvh", "SUPABASE_DB_USER", "PGUSER", "POSTGRES_USER");
+        String pass = getFirstEnvOrDefault("PlayX@2026Secure!", "SUPABASE_DB_PASSWORD", "PGPASSWORD", "POSTGRES_PASSWORD");
 
         String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + db + "?sslmode=require";
 
@@ -152,8 +152,10 @@ public class PlayxApplication {
             System.setProperty("spring.datasource.url", dbUrl);
             String u = getFirstEnvOrProp("SPRING_DATASOURCE_USERNAME", "SUPABASE_DB_USER", "PGUSER");
             String p = getFirstEnvOrProp("SPRING_DATASOURCE_PASSWORD", "SUPABASE_DB_PASSWORD", "PGPASSWORD");
-            if (u != null) System.setProperty("spring.datasource.username", u);
-            if (p != null) System.setProperty("spring.datasource.password", p);
+            if (u == null || u.isBlank()) u = "playx_app.xrhlsbsyrzvpznuspqvh";
+            if (p == null || p.isBlank()) p = "PlayX@2026Secure!";
+            System.setProperty("spring.datasource.username", u);
+            System.setProperty("spring.datasource.password", p);
             System.out.println("📦 JDBC URL configured directly: " + sanitizeUrlForLogging(dbUrl));
             return;
         }
@@ -183,11 +185,18 @@ public class PlayxApplication {
                     }
                     System.setProperty("spring.datasource.username", user);
                     System.setProperty("spring.datasource.password", pass);
+                } else {
+                    String u = getFirstEnvOrProp("SPRING_DATASOURCE_USERNAME", "SUPABASE_DB_USER", "PGUSER");
+                    String p = getFirstEnvOrProp("SPRING_DATASOURCE_PASSWORD", "SUPABASE_DB_PASSWORD", "PGPASSWORD");
+                    if (u == null || u.isBlank()) u = "playx_app.xrhlsbsyrzvpznuspqvh";
+                    if (p == null || p.isBlank()) p = "PlayX@2026Secure!";
+                    System.setProperty("spring.datasource.username", u);
+                    System.setProperty("spring.datasource.password", p);
                 }
 
                 StringBuilder jdbcUrl = new StringBuilder("jdbc:postgresql://").append(hostPortPathQuery);
-                if (!hostPortPathQuery.contains("?")) {
-                    jdbcUrl.append("?sslmode=prefer");
+                if (!hostPortPathQuery.contains("sslmode")) {
+                    jdbcUrl.append(hostPortPathQuery.contains("?") ? "&sslmode=require" : "?sslmode=require");
                 }
 
                 String finalJdbcUrl = jdbcUrl.toString();
