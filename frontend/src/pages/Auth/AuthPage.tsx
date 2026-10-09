@@ -215,11 +215,13 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
         navigate('/', { replace: true });
       }, 1200);
     } catch (err: any) {
-      const serverMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      const serverMsg = err.response?.data?.error || err.response?.data?.message;
       if (serverMsg) {
         setError(serverMsg);
+      } else if (err.message === 'Network Error' || err.message === 'Failed to fetch' || !err.response) {
+        setError('Unable to connect to PlayX backend server. Please verify your connection or backend status.');
       } else {
-        setError('Authentication failed. Please check your credentials and try again.');
+        setError(err.message || 'Authentication failed. Please check your credentials and try again.');
       }
     } finally {
       setLoading(false);
@@ -257,11 +259,13 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
         navigate('/', { replace: true });
       }, 1200);
     } catch (err: any) {
-      const serverMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      const serverMsg = err.response?.data?.error || err.response?.data?.message;
       if (serverMsg) {
         setError(serverMsg);
+      } else if (err.message === 'Network Error' || err.message === 'Failed to fetch' || !err.response) {
+        setError('Unable to reach PlayX backend server. Please check your connection or backend status.');
       } else {
-        setError('Registration failed. Please try again.');
+        setError(err.message || 'Registration failed. Please try again.');
       }
     } finally {
       setLoading(false);

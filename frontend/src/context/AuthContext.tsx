@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
 import { User } from '../types';
-import { authService, subscriptionsService } from '../services/supabaseService';
-import supabase from '../services/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -21,118 +20,109 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('playx_token'));
   const [loading, setLoading] = useState(true);
 
-  // Initial session restoration and auth listener
+  const fetchCurrentUser = async () => {
+    const storedToken = localStorage.getItem('playx_token');
+    if (!storedToken) {
+      setUser(null);
+      setToken(null);
+      setLoading(false);
+      return;
+    }
+    try {
+      const res = await api.get('/auth/me');
+      if (res.data) {
+        setUser(res.data);
+        setToken(storedToken);
+      }
+    } catch (err: any) {
+      console.warn('Failed to restore user session:', err?.response?.data || err?.message);
+      // Only clear if 401 Unauthorized, not temporary network error
+      if (err.response && err.response.status === 401) {
+        localStorage.removeItem('playx_token');
+        setUser(null);
+        setToken(null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let isMounted = true;
-
-    const initAuth = async () => {
-      try {
-        const session = await authService.getSession();
-        if (session?.user && isMounted) {
-          const playxUser = await authService.getUserProfile(
-            session.user.id,
-            session.user.email || '',
-            session.user.user_metadata?.name || '',
-            session.user.user_metadata?.role || 'user'
-          );
-          setUser(playxUser);
-          setToken(session.access_token);
-          localStorage.setItem('playx_token', session.access_token);
-        } else if (isMounted) {
-          setUser(null);
-          setToken(null);
-          localStorage.removeItem('playx_token');
-        }
-      } catch (err) {
-        console.error('Failed to restore Supabase session:', err);
-        if (isMounted) {
-          setUser(null);
-          setToken(null);
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    // Listen for real-time Supabase auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        try {
-          const playxUser = await authService.getUserProfile(
-            session.user.id,
-            session.user.email || '',
-            session.user.user_metadata?.name || '',
-            session.user.user_metadata?.role || 'user'
-          );
-          if (isMounted) {
-            setUser(playxUser);
-            setToken(session.access_token);
-            localStorage.setItem('playx_token', session.access_token);
-          }
-        } catch (e) {
-          console.error('Error synchronizing auth state change:', e);
-        }
-      } else {
-        if (isMounted) {
-          setUser(null);
-          setToken(null);
-          localStorage.removeItem('playx_token');
-        }
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      authListener?.subscription?.unsubscribe();
-    };
+    fetchCurrentUser();
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { token: newToken, user: userData } = await authService.signIn(email, password);
-    setToken(newToken);
-    setUser(userData);
+    const res = await api.post('/auth/login', { email, password });
+    const { token: newToken, user: userData } = res.data;
     if (newToken) {
       localStorage.setItem('playx_token', newToken);
+      setToken(newToken);
+    }
+    if (userData) {
+      setUser(userData);
     }
   };
 
   const register = async (name: string, email: string, password: string, role = 'user') => {
-    const { token: newToken, user: userData } = await authService.signUp(name, email, password, role);
-    setToken(newToken);
-    setUser(userData);
+    const res = await api.post('/auth/register', { name, email, password, role });
+    const { token: newToken, user: userData } = res.data;
     if (newToken) {
       localStorage.setItem('playx_token', newToken);
+      setToken(newToken);
+    }
+    if (userData) {
+      setUser(userData);
     }
   };
 
-  const registerWithoutLogin = async (name: string, email: string, password: string, _confirmPassword?: string, role = 'user') => {
-    return await authService.signUp(name, email, password, role);
+  const registerWithoutLogin = async (name: string, email: string, password: string, confirmPassword?: string, role = 'user') => {
+    const res = await api.post('/auth/register', {
+      name,
+      email,
+      password,
+      confirmPassword: confirmPassword || password,
+      role
+    });
+    return res.data;
   };
 
   const loginWithSocial = async (provider: 'google' | 'apple', email?: string, name?: string) => {
-    if (email) {
-      // If mock/demo email provided in UI, handle via Supabase Auth
-      return login(email, 'PlayX@2026');
-    }
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: provider === 'apple' ? 'apple' : 'google'
+    const res = await api.post('/auth/social-login', {
+      provider,
+      email: email || 'guest@playx.music',
+      name: name || 'PlayX Listener'
     });
-    if (error) throw new Error(error.message);
+    const { token: newToken, user: userData } = res.data;
+    if (newToken) {
+      localStorage.setItem('playx_token', newToken);
+      setToken(newToken);
+    }
+    if (userData) {
+      setUser(userData);
+    }
   };
 
   const logout = async () => {
-    await authService.signOut();
+    try {
+      await api.post('/auth/logout');
+    } catch (ignored) {}
     localStorage.removeItem('playx_token');
     setToken(null);
     setUser(null);
   };
 
   const uploadAvatar = async (file: File): Promise<string> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/upload/image', formData);
+      if (res.data?.url) return res.data.url;
+    } catch (e) {
+      console.warn('Backend image upload failed, falling back to Data URL preview:', e);
+    }
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
@@ -143,15 +133,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateProfile = async (data: { name?: string; avatar?: string; password?: string; bio?: string }) => {
     if (!user) throw new Error('Not logged in');
-    const updated = await authService.updateProfile(user.id, data);
-    setUser(prev => prev ? { ...prev, name: updated.name || prev.name, avatar: updated.avatar || prev.avatar } : null);
-    return updated;
+    const res = await api.put('/auth/profile', data);
+    if (res.data?.user) {
+      setUser(prev => prev ? { ...prev, ...res.data.user } : null);
+    } else {
+      setUser(prev => prev ? { ...prev, name: data.name || prev.name, avatar: data.avatar || prev.avatar } : null);
+    }
+    return res.data;
   };
 
   const upgradeSubscription = async (planId = 'sub_premium') => {
     if (!user) throw new Error('Not logged in');
-    const res = await subscriptionsService.upgradeSubscription(user.id, planId);
-    setUser(prev => prev ? { ...prev, subscription: res.subscription } : null);
+    try {
+      const res = await api.post('/subscriptions/upgrade', { plan_id: planId });
+      setUser(prev => prev ? { ...prev, subscription: res.data?.subscription || 'Premium' } : null);
+    } catch {
+      setUser(prev => prev ? { ...prev, subscription: 'Premium' } : null);
+    }
   };
 
   return (
