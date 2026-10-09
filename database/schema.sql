@@ -29,6 +29,10 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'artist', 'admin')),
     avatar TEXT DEFAULT 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
+    email_verified BOOLEAN DEFAULT false,
+    verification_token_hash VARCHAR(255),
+    verification_token_expiry TIMESTAMPTZ,
+    last_verification_sent_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 

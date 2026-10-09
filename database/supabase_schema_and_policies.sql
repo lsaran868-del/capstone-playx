@@ -26,19 +26,21 @@ CREATE TRIGGER on_auth_user_created_confirm
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.users (id, name, email, role, avatar, created_at)
+  INSERT INTO public.users (id, name, email, role, avatar, email_verified, created_at)
   VALUES (
     new.id::text,
     COALESCE(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'username', split_part(new.email, '@', 1), 'PlayX Listener'),
     new.email,
     COALESCE(new.raw_user_meta_data->>'role', 'user'),
     COALESCE(new.raw_user_meta_data->>'avatar', 'https://api.dicebear.com/7.x/avataaars/svg?seed=' || COALESCE(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'username', new.id::text)),
+    COALESCE((new.email_confirmed_at IS NOT NULL), false),
     NOW()
   )
   ON CONFLICT (id) DO UPDATE SET
     name = COALESCE(EXCLUDED.name, public.users.name),
     email = COALESCE(EXCLUDED.email, public.users.email),
-    role = COALESCE(EXCLUDED.role, public.users.role);
+    role = COALESCE(EXCLUDED.role, public.users.role),
+    email_verified = COALESCE(EXCLUDED.email_verified, public.users.email_verified);
 
   INSERT INTO public.user_subscriptions (id, user_id, subscription_id, status, starts_at)
   VALUES (
