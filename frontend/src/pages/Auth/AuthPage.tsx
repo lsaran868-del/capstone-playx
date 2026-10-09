@@ -15,7 +15,8 @@ import {
   Moon,
   Zap,
   Sparkles,
-  Disc3
+  Disc3,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -140,8 +141,25 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotNotice, setForgotNotice] = useState('');
 
+  // Email Verification States
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [unverifiedLoginEmail, setUnverifiedLoginEmail] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendNotice, setResendNotice] = useState('');
+
   // Music Director Slideshow State
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((c) => Math.max(0, c - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   // Preload all director images on component mount for instant, zero-flicker transitions
   useEffect(() => {
@@ -161,7 +179,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const { login, register } = useAuth();
+  const { login, register, resendVerification } = useAuth();
   const { theme, toggleTheme, isDark, isLight, isCyber, themeName } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -179,6 +197,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
   const switchMode = (newMode: 'login' | 'register') => {
     setError('');
     setSuccessMsg('');
+    setResendNotice('');
+    setUnverifiedLoginEmail('');
     setPassword('');
     setConfirmPassword('');
     setMode(newMode);
@@ -189,10 +209,35 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
     }
   };
 
+  const handleResendVerification = async (targetEmail?: string) => {
+    const toEmail = (targetEmail || registeredEmail || email).trim();
+    if (!toEmail || !isValidEmail(toEmail)) {
+      setError('Please provide a valid registered email address.');
+      return;
+    }
+    setResendLoading(true);
+    setResendNotice('');
+    try {
+      const res = await resendVerification(toEmail);
+      setResendNotice(res?.message || 'A fresh verification link has been sent to your email.');
+      setCooldown(60);
+    } catch (err: any) {
+      const resp = err?.response?.data;
+      if (err?.response?.status === 429) {
+        setCooldown(resp?.retryAfterSeconds || 60);
+      }
+      setError(resp?.error || 'Could not resend verification email. Please try again.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+    setResendNotice('');
+    setUnverifiedLoginEmail('');
 
     const cleanEmail = email.trim();
     const cleanPassword = password.trim();
@@ -215,8 +260,12 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
         navigate('/', { replace: true });
       }, 1200);
     } catch (err: any) {
-      const serverMsg = err.response?.data?.error || err.response?.data?.message;
-      if (serverMsg) {
+      const respData = err.response?.data;
+      const serverMsg = respData?.error || respData?.message;
+      if (err.response?.status === 403 && respData?.emailVerified === false) {
+        setError(serverMsg || 'Please verify your email address to log in.');
+        setUnverifiedLoginEmail(cleanEmail);
+      } else if (serverMsg) {
         setError(serverMsg);
       } else if (err.message === 'Network Error' || err.message === 'Failed to fetch' || !err.response) {
         setError('Unable to connect to PlayX backend server. Please verify your connection or backend status.');
@@ -232,6 +281,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+    setResendNotice('');
 
     const cleanName = name.trim();
     const cleanEmail = email.trim();
@@ -253,11 +303,11 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
 
     setLoading(true);
     try {
-      await register(cleanName || cleanEmail.split('@')[0], cleanEmail, password, 'user');
-      setSuccessMsg('Account created successfully! Welcome to PlayX.');
-      setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 1200);
+      const res = await register(cleanName || cleanEmail.split('@')[0], cleanEmail, password, 'user');
+      setRegisteredEmail(cleanEmail);
+      setVerificationSent(true);
+      setCooldown(60);
+      setSuccessMsg(res?.message || 'A verification link has been sent to your email address. Please verify your email to complete registration.');
     } catch (err: any) {
       const serverMsg = err.response?.data?.error || err.response?.data?.message;
       if (serverMsg) {
@@ -600,26 +650,105 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
 
             {/* Error Notification Banner */}
             {error && (
-              <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs font-medium flex items-start gap-2.5 animate-fadeIn text-left">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400 mt-0.5" />
-                <span className="flex-1 leading-snug">{error}</span>
+              <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs font-medium flex flex-col gap-2 animate-fadeIn text-left">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400 mt-0.5" />
+                  <span className="flex-1 leading-snug">{error}</span>
+                </div>
+                {unverifiedLoginEmail && (
+                  <div className="pt-2 border-t border-rose-500/20 flex items-center justify-between">
+                    <span className="text-[11px] text-rose-200/80">Didn't get the email?</span>
+                    <button
+                      type="button"
+                      disabled={resendLoading || cooldown > 0}
+                      onClick={() => handleResendVerification(unverifiedLoginEmail)}
+                      className="text-xs font-bold text-pink-400 hover:text-pink-300 underline disabled:opacity-50 flex items-center gap-1 transition-colors"
+                    >
+                      {resendLoading ? (
+                        <>
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          <span>Sending...</span>
+                        </>
+                      ) : cooldown > 0 ? (
+                        `Resend in ${cooldown}s`
+                      ) : (
+                        'Resend Verification Email'
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Resend Notice Banner */}
+            {resendNotice && (
+              <div className="p-3.5 rounded-xl bg-purple-500/15 border border-purple-500/40 text-purple-200 text-xs font-medium flex items-start gap-2.5 animate-fadeIn text-left">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-purple-400 mt-0.5" />
+                <span className="flex-1 leading-snug">{resendNotice}</span>
               </div>
             )}
 
             {/* Success Notification Banner */}
-            {successMsg && (
+            {successMsg && !verificationSent && (
               <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-medium flex items-start gap-2.5 animate-fadeIn text-left">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400 mt-0.5" />
                 <span className="flex-1 leading-snug">{successMsg}</span>
               </div>
             )}
 
-            {/* Interactive Form */}
-            <form
-              onSubmit={mode === 'register' ? handleRegisterSubmit : handleLoginSubmit}
-              className="space-y-4 text-left"
-              noValidate
-            >
+            {/* Verification Sent Success View for Register Mode */}
+            {mode === 'register' && verificationSent ? (
+              <div className="py-4 text-center space-y-4 animate-fadeIn">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center mx-auto text-purple-400 shadow-lg shadow-purple-900/30">
+                  <Mail className="w-8 h-8 animate-pulse text-pink-400" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-display text-xl font-bold text-white">Check Your Email</h3>
+                  <p className="text-xs text-purple-200/70 max-w-sm mx-auto leading-relaxed">
+                    A verification link has been sent to <strong className="text-white">{registeredEmail}</strong>. Please verify your email to complete registration and activate your account.
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-purple-950/40 border border-purple-500/20 text-[11px] text-purple-300/80 flex items-center justify-center gap-1.5">
+                  <span>⏰</span>
+                  <span><strong>Security Notice:</strong> The link expires in <strong>15 minutes</strong>.</span>
+                </div>
+                <div className="space-y-2 pt-2">
+                  <button
+                    type="button"
+                    disabled={resendLoading || cooldown > 0}
+                    onClick={() => handleResendVerification(registeredEmail)}
+                    className="w-full py-3 px-4 rounded-xl bg-purple-600/30 hover:bg-purple-600/40 border border-purple-500/40 text-purple-200 font-semibold text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {resendLoading ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending Link...</span>
+                      </>
+                    ) : cooldown > 0 ? (
+                      <span>Resend link in {cooldown}s</span>
+                    ) : (
+                      <span>Resend Verification Email</span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVerificationSent(false);
+                      switchMode('login');
+                    }}
+                    className="w-full py-2.5 text-xs text-purple-400 hover:text-pink-300 font-semibold transition-colors flex items-center justify-center gap-1"
+                  >
+                    <span>Already verified? Sign in to your account</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form
+                onSubmit={mode === 'register' ? handleRegisterSubmit : handleLoginSubmit}
+                className="space-y-4 text-left"
+                noValidate
+              >
               {/* Register Mode: Name Input */}
               {mode === 'register' && (
                 <div>
@@ -820,6 +949,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => {
                 )}
               </button>
             </form>
+            )}
 
             {/* Quick Demo Credentials Banner */}
             <div

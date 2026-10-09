@@ -22,6 +22,7 @@ import SubscriptionPage from './pages/SubscriptionPage';
 import ProfilePage from './pages/ProfilePage';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
+import VerifyEmailPage from './pages/Auth/VerifyEmailPage';
 import IntroScreen from './components/IntroScreen';
 
 const AppContent: React.FC = () => {
@@ -58,11 +59,12 @@ const AppContent: React.FC = () => {
           </p>
         </div>
       ) : !token || !user ? (
-        /* 2. Unauthenticated state: strictly show login / register */
+        /* 2. Unauthenticated state: strictly show login / register / verify-email */
         <div className="animate-fade-in w-full min-h-screen">
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </div>
@@ -98,6 +100,7 @@ const AppContent: React.FC = () => {
               <Route path="/admin-dashboard" element={<AdminDashboard />} />
               <Route path="/subscription" element={<SubscriptionPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
               {/* Redirect auth pages to dashboard if already logged in */}
               <Route path="/login" element={<Navigate to="/" replace />} />
               <Route path="/register" element={<Navigate to="/" replace />} />

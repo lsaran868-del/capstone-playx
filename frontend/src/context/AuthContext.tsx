@@ -7,8 +7,10 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, role?: string) => Promise<void>;
+  register: (name: string, email: string, password: string, role?: string) => Promise<any>;
   registerWithoutLogin: (name: string, email: string, password: string, confirmPassword?: string, role?: string) => Promise<any>;
+  resendVerification: (email: string) => Promise<any>;
+  verifyEmail: (verificationToken: string) => Promise<any>;
   loginWithSocial: (provider: 'google' | 'apple', email?: string, name?: string) => Promise<void>;
   logout: () => void;
   updateProfile: (data: { name?: string; avatar?: string; password?: string; bio?: string }) => Promise<any>;
@@ -76,6 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (userData) {
       setUser(userData);
     }
+    return res.data;
   };
 
   const registerWithoutLogin = async (name: string, email: string, password: string, confirmPassword?: string, role = 'user') => {
@@ -86,6 +89,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       confirmPassword: confirmPassword || password,
       role
     });
+    return res.data;
+  };
+
+  const resendVerification = async (email: string) => {
+    const res = await api.post('/auth/resend-verification', { email });
+    return res.data;
+  };
+
+  const verifyEmail = async (verificationToken: string) => {
+    const res = await api.get(`/auth/verify-email?token=${encodeURIComponent(verificationToken)}`);
+    const { token: newToken, user: userData } = res.data;
+    if (newToken) {
+      localStorage.setItem('playx_token', newToken);
+      setToken(newToken);
+    }
+    if (userData) {
+      setUser(userData);
+    }
     return res.data;
   };
 
@@ -161,6 +182,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         register,
         registerWithoutLogin,
+        resendVerification,
+        verifyEmail,
         loginWithSocial,
         logout,
         updateProfile,
