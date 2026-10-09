@@ -75,61 +75,48 @@ public class AuthController {
 
         String role = requestedRole.equals("artist") ? "artist" : "user";
         Optional<User> existingUser = userRepository.findByEmailIgnoreCase(emailLower);
-        User user;
-
         if (existingUser.isPresent()) {
-            user = existingUser.get();
-            if (name != null && !name.trim().isEmpty()) {
-                user.setName(finalName);
-            }
-            user.setPassword(passwordEncoder.encode(password));
-            userRepository.save(user);
-        } else {
-            String userId = "usr_" + UUID.randomUUID().toString().substring(0, 8);
-            String avatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + finalName;
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Email is already registered."));
+        }
 
-            user = User.builder()
-                    .id(userId)
-                    .name(finalName)
-                    .email(emailLower)
-                    .password(passwordEncoder.encode(password))
-                    .role(role)
-                    .avatar(avatar)
-                    .build();
+        String userId = "usr_" + UUID.randomUUID().toString().substring(0, 8);
+        String avatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + finalName;
 
-            userRepository.save(user);
+        User user = User.builder()
+                .id(userId)
+                .name(finalName)
+                .email(emailLower)
+                .password(passwordEncoder.encode(password))
+                .role(role)
+                .avatar(avatar)
+                .build();
 
-            // Save default free subscription
-            String userSubId = "usub_" + UUID.randomUUID().toString().substring(0, 8);
-            userSubscriptionRepository.save(UserSubscription.builder()
-                    .id(userSubId)
+        userRepository.save(user);
+
+        // Save default free subscription
+        String userSubId = "usub_" + UUID.randomUUID().toString().substring(0, 8);
+        userSubscriptionRepository.save(UserSubscription.builder()
+                .id(userSubId)
+                .userId(userId)
+                .subscriptionId("sub_free")
+                .status("active")
+                .build());
+
+        // Create artist profile automatically if role is artist
+        if ("artist".equals(role)) {
+            String artistId = "art_" + UUID.randomUUID().toString().substring(0, 8);
+            artistRepository.save(Artist.builder()
+                    .id(artistId)
                     .userId(userId)
-                    .subscriptionId("sub_free")
-                    .status("active")
+                    .name(finalName)
+                    .bio("Official artist profile for " + finalName)
+                    .image(avatar)
+                    .isVerified(true)
+                    .monthlyListeners(0)
                     .build());
-
-            // Create artist profile automatically if role is artist
-            if ("artist".equals(role)) {
-                String artistId = "art_" + UUID.randomUUID().toString().substring(0, 8);
-                artistRepository.save(Artist.builder()
-                        .id(artistId)
-                        .userId(userId)
-                        .name(finalName)
-                        .bio("Official artist profile for " + finalName)
-                        .image(avatar)
-                        .isVerified(true)
-                        .monthlyListeners(0)
-                        .build());
-            }
         }
 
-        Optional<UserSubscription> userSubOpt = userSubscriptionRepository.findByUserId(user.getId());
         String planName = "Free";
-        if (userSubOpt.isPresent()) {
-            String subId = userSubOpt.get().getSubscriptionId();
-            planName = "sub_premium".equals(subId) ? "Premium" : "Free";
-        }
-
         String token = jwtTokenProvider.generateToken(user.getId(), emailLower, user.getRole(), user.getName());
 
         Map<String, Object> response = new HashMap<>();
@@ -162,44 +149,13 @@ public class AuthController {
         }
 
         Optional<User> userOpt = userRepository.findByEmailIgnoreCase(emailLower);
-        User user;
-
         if (userOpt.isEmpty()) {
-            // Auto-provision account for any email entered at login
-            String name = emailLower.substring(0, emailLower.indexOf('@'));
-            if (!name.isEmpty()) {
-                name = Character.toUpperCase(name.charAt(0)) + (name.length() > 1 ? name.substring(1) : "");
-            } else {
-                name = "PlayX Listener";
-            }
-            String userId = "usr_" + UUID.randomUUID().toString().substring(0, 8);
-            String avatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + name;
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid email or password."));
+        }
 
-            user = User.builder()
-                    .id(userId)
-                    .name(name)
-                    .email(emailLower)
-                    .password(passwordEncoder.encode(password))
-                    .role("user")
-                    .avatar(avatar)
-                    .build();
-
-            userRepository.save(user);
-
-            String userSubId = "usub_" + UUID.randomUUID().toString().substring(0, 8);
-            userSubscriptionRepository.save(UserSubscription.builder()
-                    .id(userSubId)
-                    .userId(userId)
-                    .subscriptionId("sub_free")
-                    .status("active")
-                    .build());
-        } else {
-            user = userOpt.get();
-            // Allow login and update password if needed
-            if (!passwordEncoder.matches(password, user.getPassword())) {
-                user.setPassword(passwordEncoder.encode(password));
-                userRepository.save(user);
-            }
+        User user = userOpt.get();
+        if (user.getPassword() == null || !passwordEncoder.matches(password, user.getPassword())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid email or password."));
         }
 
         Optional<UserSubscription> userSubOpt = userSubscriptionRepository.findByUserId(user.getId());
