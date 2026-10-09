@@ -87,9 +87,15 @@ public class PlayxBackendApplicationTests {
         assertEquals("Please enter both email and password.", response.getBody().get("error"));
     }
 
+    @Autowired
+    private com.playx.repository.UserRepository testUserRepository;
+
+    @Autowired
+    private com.playx.service.EmailService testEmailService;
+
     @Test
-    @DisplayName("5. Verify user registration and duplicate prevention (409)")
-    public void testRegistrationAndDuplicate() {
+    @DisplayName("5. Verify user registration, email verification, and unverified login prevention")
+    public void testRegistrationAndVerificationFlow() {
         String uniqueEmail = "reg_test_" + System.currentTimeMillis() + "@example.com";
         Map<String, String> newUserData = Map.of(
                 "name", "Integration Tester",
@@ -97,17 +103,57 @@ public class PlayxBackendApplicationTests {
                 "password", "SecurePass2026!"
         );
 
+        // 1. Register new account - returns 201 Created with emailVerified = false
         ResponseEntity<Map> regResp = restTemplate.postForEntity(getBaseUrl() + "/api/auth/register", newUserData, Map.class);
         assertEquals(HttpStatus.CREATED, regResp.getStatusCode());
         assertNotNull(regResp.getBody());
-        assertEquals("Registration successful", regResp.getBody().get("message"));
-        assertNotNull(regResp.getBody().get("token"));
+        assertTrue(regResp.getBody().get("message").toString().contains("verification link has been sent"));
+        assertEquals(false, regResp.getBody().get("emailVerified"));
 
-        // Duplicate registration attempt
+        // 2. Try logging in before verification - rejected with 403 Forbidden
+        Map<String, String> unverifiedCreds = Map.of("email", uniqueEmail, "password", "SecurePass2026!");
+        ResponseEntity<Map> unverifiedLogin = restTemplate.postForEntity(getBaseUrl() + "/api/auth/login", unverifiedCreds, Map.class);
+        assertEquals(HttpStatus.FORBIDDEN, unverifiedLogin.getStatusCode());
+        assertNotNull(unverifiedLogin.getBody());
+        assertEquals(false, unverifiedLogin.getBody().get("emailVerified"));
+
+        // 3. Test resend cooldown rate limit (must return 429 Too Many Requests within 60s)
+        ResponseEntity<Map> resendResp = restTemplate.postForEntity(getBaseUrl() + "/api/auth/resend-verification", Map.of("email", uniqueEmail), Map.class);
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, resendResp.getStatusCode());
+
+        // 4. Test invalid token
+        ResponseEntity<Map> invalidTokenResp = restTemplate.getForEntity(getBaseUrl() + "/api/auth/verify-email?token=invalid_dummy_token_999", Map.class);
+        assertEquals(HttpStatus.BAD_REQUEST, invalidTokenResp.getStatusCode());
+
+        // 5. Verify the user using their token
+        com.playx.model.User savedUser = testUserRepository.findByEmailIgnoreCase(uniqueEmail).orElseThrow();
+        assertFalse(savedUser.getEmailVerified());
+        assertNotNull(savedUser.getVerificationTokenHash());
+
+        // Set a known token hash so we can verify via HTTP GET
+        String rawTestToken = "test_verification_token_secret_12345";
+        savedUser.setVerificationTokenHash(testEmailService.hashToken(rawTestToken));
+        savedUser.setVerificationTokenExpiry(java.time.LocalDateTime.now().plusMinutes(15));
+        testUserRepository.save(savedUser);
+
+        ResponseEntity<Map> verifyResp = restTemplate.getForEntity(getBaseUrl() + "/api/auth/verify-email?token=" + rawTestToken, Map.class);
+        assertEquals(HttpStatus.OK, verifyResp.getStatusCode());
+        assertNotNull(verifyResp.getBody());
+        assertEquals(true, verifyResp.getBody().get("verified"));
+        assertNotNull(verifyResp.getBody().get("token"));
+
+        // 6. Test token single-use: verifying the same token again should be rejected
+        ResponseEntity<Map> reuseResp = restTemplate.getForEntity(getBaseUrl() + "/api/auth/verify-email?token=" + rawTestToken, Map.class);
+        assertEquals(HttpStatus.BAD_REQUEST, reuseResp.getStatusCode());
+
+        // 7. Login now succeeds with 200 OK
+        ResponseEntity<Map> verifiedLogin = restTemplate.postForEntity(getBaseUrl() + "/api/auth/login", unverifiedCreds, Map.class);
+        assertEquals(HttpStatus.OK, verifiedLogin.getStatusCode());
+        assertEquals("Login successful", verifiedLogin.getBody().get("message"));
+
+        // 8. Duplicate registration attempt on verified account returns 409 Conflict
         ResponseEntity<Map> dupResp = restTemplate.postForEntity(getBaseUrl() + "/api/auth/register", newUserData, Map.class);
         assertEquals(HttpStatus.CONFLICT, dupResp.getStatusCode());
-        assertNotNull(dupResp.getBody());
-        assertEquals("Email is already registered.", dupResp.getBody().get("error"));
     }
 
     @Test

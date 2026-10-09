@@ -32,6 +32,19 @@ public class User {
     private String avatar;
 
     @Builder.Default
+    @Column(name = "email_verified")
+    private Boolean emailVerified = false;
+
+    @Column(name = "verification_token_hash", length = 255)
+    private String verificationTokenHash;
+
+    @Column(name = "verification_token_expiry")
+    private LocalDateTime verificationTokenExpiry;
+
+    @Column(name = "last_verification_sent_at")
+    private LocalDateTime lastVerificationSentAt;
+
+    @Builder.Default
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }

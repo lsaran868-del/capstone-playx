@@ -44,6 +44,9 @@ public class AuthController {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
+    @Autowired
+    private com.playx.service.EmailService emailService;
+
     private boolean isValidEmail(String email) {
         if (email == null) return false;
         String clean = email.trim();
@@ -76,11 +79,45 @@ public class AuthController {
         String role = requestedRole.equals("artist") ? "artist" : "user";
         Optional<User> existingUser = userRepository.findByEmailIgnoreCase(emailLower);
         if (existingUser.isPresent()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Email is already registered."));
+            User existing = existingUser.get();
+            if (Boolean.TRUE.equals(existing.getEmailVerified())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Email is already registered."));
+            }
+
+            // Existing unverified account: enforce 60-second resend cooldown
+            if (existing.getLastVerificationSentAt() != null) {
+                long secondsSinceLast = java.time.Duration.between(existing.getLastVerificationSentAt(), java.time.LocalDateTime.now()).getSeconds();
+                if (secondsSinceLast < 60) {
+                    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
+                            "error", "A verification email was recently sent. Please wait " + (60 - secondsSinceLast) + " seconds before requesting another.",
+                            "retryAfterSeconds", 60 - secondsSinceLast
+                    ));
+                }
+            }
+
+            String rawToken = emailService.generateVerificationToken();
+            String hashedToken = emailService.hashToken(rawToken);
+            existing.setName(finalName);
+            existing.setPassword(passwordEncoder.encode(password));
+            existing.setRole(role);
+            existing.setVerificationTokenHash(hashedToken);
+            existing.setVerificationTokenExpiry(java.time.LocalDateTime.now().plusMinutes(15));
+            existing.setLastVerificationSentAt(java.time.LocalDateTime.now());
+            userRepository.save(existing);
+
+            emailService.sendVerificationEmail(emailLower, finalName, rawToken);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "A verification link has been sent to your email address. Please verify your email to complete registration.",
+                    "email", emailLower,
+                    "emailVerified", false
+            ));
         }
 
         String userId = "usr_" + UUID.randomUUID().toString().substring(0, 8);
         String avatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + finalName;
+        String rawToken = emailService.generateVerificationToken();
+        String hashedToken = emailService.hashToken(rawToken);
 
         User user = User.builder()
                 .id(userId)
@@ -89,6 +126,10 @@ public class AuthController {
                 .password(passwordEncoder.encode(password))
                 .role(role)
                 .avatar(avatar)
+                .emailVerified(false)
+                .verificationTokenHash(hashedToken)
+                .verificationTokenExpiry(java.time.LocalDateTime.now().plusMinutes(15))
+                .lastVerificationSentAt(java.time.LocalDateTime.now())
                 .build();
 
         userRepository.save(user);
@@ -116,22 +157,113 @@ public class AuthController {
                     .build());
         }
 
-        String planName = "Free";
-        String token = jwtTokenProvider.generateToken(user.getId(), emailLower, user.getRole(), user.getName());
+        emailService.sendVerificationEmail(emailLower, finalName, rawToken);
 
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "Registration successful");
-        response.put("token", token);
+        response.put("message", "A verification link has been sent to your email address. Please verify your email to complete registration.");
+        response.put("email", emailLower);
+        response.put("emailVerified", false);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@RequestParam(name = "token", required = false) String token) {
+        if (token == null || token.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Verification token is required."));
+        }
+
+        String hashedToken = emailService.hashToken(token.trim());
+        Optional<User> userOpt = userRepository.findByVerificationTokenHash(hashedToken);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Invalid or already-used verification link.",
+                    "valid", false
+            ));
+        }
+
+        User user = userOpt.get();
+        if (user.getVerificationTokenExpiry() == null || user.getVerificationTokenExpiry().isBefore(java.time.LocalDateTime.now())) {
+            return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
+                    "error", "Verification link has expired. Please request a new verification email.",
+                    "expired", true,
+                    "email", user.getEmail()
+            ));
+        }
+
+        user.setEmailVerified(true);
+        user.setVerificationTokenHash(null);
+        user.setVerificationTokenExpiry(null);
+        userRepository.save(user);
+
+        Optional<UserSubscription> userSubOpt = userSubscriptionRepository.findByUserId(user.getId());
+        String planName = "Free";
+        if (userSubOpt.isPresent()) {
+            String subId = userSubOpt.get().getSubscriptionId();
+            planName = "sub_premium".equals(subId) ? "Premium" : "Free";
+        }
+
+        String authToken = jwtTokenProvider.generateToken(user.getId(), user.getEmail(), user.getRole(), user.getName());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Email verified successfully! Welcome to PLAYX.");
+        response.put("verified", true);
+        response.put("token", authToken);
         response.put("user", Map.of(
                 "id", user.getId(),
                 "name", user.getName(),
-                "email", emailLower,
+                "email", user.getEmail(),
                 "role", user.getRole(),
                 "avatar", user.getAvatar(),
                 "subscription", planName
         ));
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<?> resendVerification(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email is required."));
+        }
+
+        String emailLower = email.toLowerCase().trim();
+        Optional<User> userOpt = userRepository.findByEmailIgnoreCase(emailLower);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "No account found with this email address."));
+        }
+
+        User user = userOpt.get();
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "This email address is already verified. Please log in."));
+        }
+
+        // Rate limiting: 60s cooldown
+        if (user.getLastVerificationSentAt() != null) {
+            long secondsSinceLast = java.time.Duration.between(user.getLastVerificationSentAt(), java.time.LocalDateTime.now()).getSeconds();
+            if (secondsSinceLast < 60) {
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
+                        "error", "Please wait " + (60 - secondsSinceLast) + " seconds before requesting another verification email.",
+                        "retryAfterSeconds", 60 - secondsSinceLast
+                ));
+            }
+        }
+
+        String rawToken = emailService.generateVerificationToken();
+        String hashedToken = emailService.hashToken(rawToken);
+
+        user.setVerificationTokenHash(hashedToken);
+        user.setVerificationTokenExpiry(java.time.LocalDateTime.now().plusMinutes(15));
+        user.setLastVerificationSentAt(java.time.LocalDateTime.now());
+        userRepository.save(user);
+
+        emailService.sendVerificationEmail(user.getEmail(), user.getName(), rawToken);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "A new verification link has been sent to your email address.",
+                "email", user.getEmail()
+        ));
     }
 
     @PostMapping("/login")
@@ -156,6 +288,14 @@ public class AuthController {
         User user = userOpt.get();
         if (user.getPassword() == null || !passwordEncoder.matches(password, user.getPassword())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid email or password."));
+        }
+
+        if (Boolean.FALSE.equals(user.getEmailVerified())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "Please verify your email address to log in.",
+                    "emailVerified", false,
+                    "email", user.getEmail()
+            ));
         }
 
         Optional<UserSubscription> userSubOpt = userSubscriptionRepository.findByUserId(user.getId());

@@ -61,7 +61,14 @@ public class WebSecurityConfig {
                     AntPathRequestMatcher.antMatcher("/uploads/covers/**")
                 ).permitAll()
                 // Auth paths
-                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/register"), AntPathRequestMatcher.antMatcher("/api/auth/login"), AntPathRequestMatcher.antMatcher("/api/auth/social-login"), AntPathRequestMatcher.antMatcher("/api/auth/logout")).permitAll()
+                .requestMatchers(
+                    AntPathRequestMatcher.antMatcher("/api/auth/register"),
+                    AntPathRequestMatcher.antMatcher("/api/auth/login"),
+                    AntPathRequestMatcher.antMatcher("/api/auth/verify-email"),
+                    AntPathRequestMatcher.antMatcher("/api/auth/resend-verification"),
+                    AntPathRequestMatcher.antMatcher("/api/auth/social-login"),
+                    AntPathRequestMatcher.antMatcher("/api/auth/logout")
+                ).permitAll()
                 // Permissive GET routes
                 .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs"), AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs/recommended"), AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs/popular"), AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs/new-releases"), AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs/{id}")).permitAll()
                 .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/songs/{id}/stream")).permitAll()
